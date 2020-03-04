@@ -39,6 +39,67 @@ def getNeighborPairs(G, nodeInfo, pos):
 def getRecipientReputation(donor, recipient):
     return donor['perception'][recipient['id']]['reputation']
 
+def getGossiper(G, donor, nodeInfo, pos):
+
+    # Choose one of the donor's neighbors who will witness and gossip about the interaction
+    neighbors = G.neighbors(donor['pos'])
+    snitch = []
+    for neighbor in neighbors:
+        neighborIt = pos.index(neighbor)
+        snitch.append(nodeInfo[neighborIt])
+
+    gossiper = random.choice(snitch)
+
+    return gossiper
+
+def updatePerception(socialNorm, witness, donor, recipient, action):
+    # print('Before: ')
+    # print('Norm: ', socialNorm,'Donor:',witness['perception'][donor['pos']]['reputation'],'Action: ', action)
+
+    # Stern Judging (Coop with Good = G; Defect with Bad = G; else B)
+    if socialNorm == 'SternJudging':
+        if action == 'Cooperate' and witness['perception'][recipient['pos']]['reputation'] == 'Good':
+            witness['perception'][donor['pos']]['reputation'] = 'Good'
+        elif action == 'Defect' and witness['perception'][recipient['pos']]['reputation'] == 'Bad':
+            witness['perception'][donor['pos']]['reputation'] = 'Good'
+        else:
+            witness['perception'][donor['pos']]['reputation'] = 'Bad'
+
+
+    # Simple Standing (Defect with Good = B; else G)
+    elif socialNorm == 'SimpleStanding':
+        if action == 'Defect' and witness['perception'][recipient['pos']]['reputation'] == 'Good':
+            witness['perception'][donor['pos']]['reputation'] = 'Bad'
+        else:
+            witness['perception'][donor['pos']]['reputation'] = 'Good'
+
+    # Shunning (Coop with Good = G; else B)
+    elif socialNorm == 'Shunning':
+        if action == 'Cooperate' and witness['perception'][recipient['pos']]['reputation'] == 'Good':
+            witness['perception'][donor['pos']]['reputation'] = 'Good'
+        else:
+            witness['perception'][donor['pos']]['reputation'] = 'Bad'
+
+    # Image Scoring (Coop = Good; Defect = Bad)
+    elif socialNorm == 'ImageScoring':
+        if action == 'Cooperate':
+            witness['perception'][donor['pos']]['reputation'] = 'Good'
+        elif action == 'Defect':
+            witness['perception'][donor['pos']]['reputation'] = 'Bad'
+        else:
+            print('Error: Action is neither "Cooperate" nor "Defect" ' )
+            exit()
+
+    else:
+        print('Wrong socialNorm, check initial parameters')
+        exit()
+
+    # print('After: ')
+    # print('Donor:', witness['perception'][donor['pos']]['reputation'])
+
+    # witness['perception'][donor['pos']]['reputation'] =
+
+
 def drawGraph(G, nodeInfo, dir, it):
 
     # Group nodes according to their strategy
