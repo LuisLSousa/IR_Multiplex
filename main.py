@@ -37,6 +37,9 @@ class IndirectReciprocityMultiplexNetworks:
 		elif self.layer1 == 'WattsStrogatz':
 			self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob)
 
+		elif self.layer1 == 'BarabasiAlbert':
+			self.layer1 = barabasiAlbert(self.numNodes, self.avgDegree)
+
 		else:
 			print('Wrong layer1 parameter!')
 			exit()
@@ -46,6 +49,9 @@ class IndirectReciprocityMultiplexNetworks:
 
 		elif self.layer2 == 'WattsStrogatz':
 			self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob)
+
+		elif self.layer2 == 'BarabasiAlbert':
+			self.layer2 = barabasiAlbert(self.numNodes, self.avgDegree)
 
 		elif self.layer2 == 'Layer1':
 			self.layer2 = self.layer1
@@ -112,6 +118,7 @@ class IndirectReciprocityMultiplexNetworks:
 				print('== Logging {} =='.format(i))
 				#l = self.LogsPerGen(i)
 				drawGraph(self.layer1, self.nodes, dir, i)
+				print(self.nodes[5]['strategy'])
 
 			self.socialLearning()
 
@@ -120,7 +127,7 @@ class IndirectReciprocityMultiplexNetworks:
 
 			LogsPerGen.append(lg)
 
-			# print(LogsPerGen)
+		print(LogsPerGen)
 
 	def runGeneration(self):
 
@@ -147,6 +154,7 @@ class IndirectReciprocityMultiplexNetworks:
 			action = 'Cooperate'
 			donor['payoff'] -= self.cost
 			recipient['payoff'] += self.benefit
+
 		else:
 			action = 'Defect'
 
@@ -156,7 +164,6 @@ class IndirectReciprocityMultiplexNetworks:
 		print(getRecipientReputation(donor, recipient))
 		print(action)
 		'''
-
 		return action
 
 	def runGossip(self, pair, action):
@@ -193,9 +200,9 @@ if __name__ == "__main__":
 		'logFreq': 1000,
 		'cost': 0.1, # Cost of cooperation
 		'benefit': 1, # Benefit of receiving cooperation
-		'layer1': 'WattsStrogatz', # Graph topology: 'WattsStrogatz', 'Random', ...
-		'layer2': 'WattsStrogatz', # Graph topology: 'WattsStrogatz', 'Random', 'Layer1' (Layers are equal)
-		'socialNorm': 'ImageScoring', # SimpleStanding, ImageScoring, Shunning or SternJudging
+		'layer1': 'BarabasiAlbert', # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert'
+		'layer2': 'Layer1', # Graph topology: 'WattsStrogatz', 'Random', 'Layer1' (Layers are equal), ...
+		'socialNorm': 'SternJudging', # SimpleStanding, ImageScoring, Shunning or SternJudging
 
 	}
 
