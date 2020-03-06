@@ -102,24 +102,24 @@ def updatePerception(socialNorm, witness, donor, recipient, action):
 
     # witness['perception'][donor['pos']]['reputation'] =
 
-
 def drawGraph(G, nodeInfo, dir, it):
 
     # Group nodes according to their strategy
-    arr = ['AllC', 'Disc', 'pDisc', 'AllD']
+    arr = ['AllC', 'AllD', 'Disc', 'pDisc']
     groups = set(arr)
     mapping = dict(zip(sorted(groups), count()))
+    #print(mapping)
     nodes = G.nodes()
     colors = [mapping[str(n['strategy'])] for n in nodeInfo]
-
+    #print(colors)
     # Drawing nodes and edges separately in order to capture collection for colorbar
-    # pos = nx.spring_layout(G)
+    #pos = nx.spring_layout(G)
     pos = nx.circular_layout(G)
     ec = nx.draw_networkx_edges(G, pos, alpha=0.2)
     nc = nx.draw_networkx_nodes(G, pos, nodelist=nodes, node_color=colors, with_labels=False, node_size=50, cmap = plt.jet())
     cbar = plt.colorbar(nc, ticks=[0, 1, 2, 3], orientation='vertical')
-    cbar.ax.set_yticklabels(['AllC', 'Disc', 'pDisc', 'AllD']) # Must be in the same order as arr (defined above)
-    # print(mapping) # Check if colorbar label is correct
+    cbar.ax.set_yticklabels(['AllC', 'AllD', 'Disc', 'pDisc']) # Alphabetic order
+    # fixme - when there is only one strategy remaining, it defaults to green
     plt.axis('off')
     plt.savefig(join(dir, 'graph{}.png'.format(it)))
     plt.close()

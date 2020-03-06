@@ -10,7 +10,7 @@ import json
 class IndirectReciprocityMultiplexNetworks:
 
 	nodes = []
-	def __init__(self, numNodes=100, prob=0.5, avgDegree=2, numGenerations=100, logFreq=1, cost=0.1, benefit=1, layer1=None, layer2=None, socialNorm = 'SternJudging'):
+	def __init__(self, numNodes=100, prob=0.5, avgDegree=2, numGenerations=100, logFreq=1, cost=0.1, benefit=1, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm = 'SternJudging'):
 		self.numNodes = numNodes
 		self.prob = prob # Rewire probability for Watts-Strogatz
 		self.avgDegree = avgDegree
@@ -19,6 +19,7 @@ class IndirectReciprocityMultiplexNetworks:
 		self.cost = cost # Donation Game
 		self.benefit = benefit # Donation Game
 		self.socialNorm = socialNorm # Global social norm (the entire population follows this)
+		self.gephi = gephiFileName
 
 		self.layer1 = layer1 # Layer1 topology
 		self.layer2 = layer2 # Layer2 topology
@@ -67,7 +68,8 @@ class IndirectReciprocityMultiplexNetworks:
 				'id': self.idIterator,
 				'payoff': 0,
 				#'reputation': self.calculateInitialReputation(), # Not used because each node has its perception of all others
-				'strategy': initialStrategies[i]
+				'strategy': initialStrategies[i],
+				'viz': None
 			})
 
 			self.idToIndex[self.idIterator] = len(self.nodes) - 1
@@ -117,8 +119,7 @@ class IndirectReciprocityMultiplexNetworks:
 			if i % self.logFreq == 0:
 				print('== Logging {} =='.format(i))
 				#l = self.LogsPerGen(i)
-				drawGraph(self.layer1, self.nodes, dir, i)
-				print(self.nodes[5]['strategy'])
+				#drawGraph(self.layer1, self.nodes, dir, i)
 
 			self.socialLearning()
 
@@ -127,7 +128,9 @@ class IndirectReciprocityMultiplexNetworks:
 
 			LogsPerGen.append(lg)
 
-		print(LogsPerGen)
+		self.runVisualization()
+
+		#print(LogsPerGen)
 
 	def runGeneration(self):
 
@@ -190,6 +193,30 @@ class IndirectReciprocityMultiplexNetworks:
 				if probability(prob):
 					mine['strategy'] = partner['strategy']
 
+	def runVisualization(self):
+	# Add node colors for Gephi
+		for item in self.nodes:
+			if item['strategy'] == 'AllC':
+				self.nodes[item['pos']]['viz'] = {'color': {'r': 0, 'g': 0, 'b': 255, 'a': 0}}
+			elif item['strategy'] == 'AllD':
+				self.nodes[item['pos']]['viz'] = {'color': {'r': 255, 'g': 0, 'b': 0, 'a': 0}}
+			elif item['strategy'] == 'Disc':
+				self.nodes[item['pos']]['viz'] = {'color': {'r': 0, 'g': 255, 'b': 0, 'a': 0}}
+			elif item['strategy'] == 'pDisc':
+				self.nodes[item['pos']]['viz'] = {'color': {'r': 0, 'g': 255, 'b': 255, 'a': 0}}
+
+		# fixme - simpler way of doing this
+		for i in range(self.numNodes):
+			self.layer1.nodes[i]['pos'] = self.nodes[i]['pos']
+			self.layer1.nodes[i]['id'] =  self.nodes[i]['id']
+			self.layer1.nodes[i]['payoff'] = self.nodes[i]['payoff']
+			self.layer1.nodes[i]['strategy'] = self.nodes[i]['strategy']
+			self.layer1.nodes[i]['viz'] = self.nodes[i]['viz']
+
+		#print(self.layer1.nodes(data=True))
+
+		nx.write_gexf(self.layer1, self.gephi)
+
 if __name__ == "__main__":
 	# Variables used
 	initialValues = {
@@ -200,7 +227,8 @@ if __name__ == "__main__":
 		'logFreq': 1000,
 		'cost': 0.1, # Cost of cooperation
 		'benefit': 1, # Benefit of receiving cooperation
-		'layer1': 'BarabasiAlbert', # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert'
+		'gephiFileName': 'test.gexf', # File name used for the gephi export. Must include '.gexf'
+		'layer1': 'WattsStrogatz', # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
 		'layer2': 'Layer1', # Graph topology: 'WattsStrogatz', 'Random', 'Layer1' (Layers are equal), ...
 		'socialNorm': 'SternJudging', # SimpleStanding, ImageScoring, Shunning or SternJudging
 
@@ -220,6 +248,8 @@ if __name__ == "__main__":
 
 	# todo - add mutation to socialLearning - adopt a random strategy
 	# todo - add more graph topologies
+	# todo - reset payoffs and reputations
 	# todo - stationary fraction of good and bad reputations
+	# todo - fix plot labels
 	# todo - add more plots
 	# todo - test the entire program
