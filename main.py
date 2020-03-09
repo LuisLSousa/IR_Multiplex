@@ -67,7 +67,7 @@ class IndirectReciprocityMultiplexNetworks:
 				'pos': self.nodePos[i], # Redundante?
 				'id': self.idIterator,
 				'payoff': 0,
-				#'reputation': self.calculateInitialReputation(), # Not used because each node has its perception of all others
+				#'reputation': self.calculateInitialReputation(), # Not used because each node has its own perception of all others
 				'strategy': initialStrategies[i],
 				'viz': None
 			})
@@ -130,7 +130,7 @@ class IndirectReciprocityMultiplexNetworks:
 
 		self.runVisualization()
 
-		#print(LogsPerGen)
+		print(LogsPerGen)
 
 	def runGeneration(self):
 
@@ -138,7 +138,7 @@ class IndirectReciprocityMultiplexNetworks:
 		actions = []
 		for j, pair in enumerate(interactionPairs):
 			actions.append(self.runInteraction(pair))
-			self.runGossip(pair, actions[-1]) # Update perceptions of the gossipers neighbors in L2
+			self.runGossip(pair, actions[-1]) # Update perceptions of the gossiper's neighbors in L2
 
 		actionFreq = countFreq(actions)
 		cooperationRatio = actionFreq['Cooperate'] if 'Cooperate' in actionFreq.keys() else 0
@@ -196,11 +196,11 @@ class IndirectReciprocityMultiplexNetworks:
 	def runVisualization(self):
 	# Add node colors for Gephi
 		for item in self.nodes:
-			if item['strategy'] == 'AllC':
+			if item['strategy'] == 'AllC': # Blue
 				self.nodes[item['pos']]['viz'] = {'color': {'r': 0, 'g': 0, 'b': 255, 'a': 0}}
-			elif item['strategy'] == 'AllD':
+			elif item['strategy'] == 'AllD': # Red
 				self.nodes[item['pos']]['viz'] = {'color': {'r': 255, 'g': 0, 'b': 0, 'a': 0}}
-			elif item['strategy'] == 'Disc':
+			elif item['strategy'] == 'Disc': # Green
 				self.nodes[item['pos']]['viz'] = {'color': {'r': 0, 'g': 255, 'b': 0, 'a': 0}}
 			elif item['strategy'] == 'pDisc':
 				self.nodes[item['pos']]['viz'] = {'color': {'r': 0, 'g': 255, 'b': 255, 'a': 0}}
@@ -229,27 +229,35 @@ if __name__ == "__main__":
 		'benefit': 1, # Benefit of receiving cooperation
 		'gephiFileName': 'test.gexf', # File name used for the gephi export. Must include '.gexf'
 		'layer1': 'WattsStrogatz', # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
-		'layer2': 'Layer1', # Graph topology: 'WattsStrogatz', 'Random', 'Layer1' (Layers are equal), ...
+		'layer2': 'WattsStrogatz', # Graph topology: 'WattsStrogatz', 'Random', 'Layer1' (Layers are equal), ...
 		'socialNorm': 'SternJudging', # SimpleStanding, ImageScoring, Shunning or SternJudging
 
 	}
 
-	config = initialValues.copy()
-	dir = join('output', 'testrun{}'.format(1))
+	changes = [{}]
+	'''changes = [
+               #{'gephiFileName':  'SJ.gexf', 'socialNorm': 'SternJudging',}, {'gephiFileName':  'SS.gexf', 'socialNorm': 'SimpleStanding',}, \
+               {'gephiFileName':  'IS.gexf', 'socialNorm': 'ImageScoring',}, {'gephiFileName':  'SH.gexf', 'socialNorm': 'Shunning',},
+               ]
+    '''
 
-	if not os.path.exists(dir):
-		mkdir(dir)
+	for j, c in enumerate(changes):
+		config = initialValues.copy()
+		dir = join('output', 'testrun{}'.format(1))
 
-	sim = IndirectReciprocityMultiplexNetworks(**config)
-	sim.runSimulation()
+		if not os.path.exists(dir):
+			mkdir(dir)
 
-	with open(join(dir, 'config.json'), 'w') as fp:
-		json.dump(config, fp)
+		sim = IndirectReciprocityMultiplexNetworks(**config)
+		sim.runSimulation()
+
+		with open(join(dir, 'config.json'), 'w') as fp:
+			json.dump(config, fp)
 
 	# todo - add mutation to socialLearning - adopt a random strategy
 	# todo - add more graph topologies
 	# todo - reset payoffs and reputations
 	# todo - stationary fraction of good and bad reputations
 	# todo - fix plot labels
-	# todo - add more plots
+	# todo - Histograms
 	# todo - test the entire program
