@@ -10,19 +10,24 @@ import json
 class IndirectReciprocityMultiplexNetworks:
 
 	nodes = []
-	def __init__(self, numNodes=100, prob=0.5, avgDegree=2, numGenerations=100, logFreq=1, cost=0.1, benefit=1, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm = 'SternJudging'):
-		self.numNodes = numNodes
-		self.prob = prob # Rewire probability for Watts-Strogatz
+	def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree=2, numGenerations=100, logFreq=1, cost=0.1, benefit=1, transError=0.01,beta=10, update='Synchronous', mutation=0.01, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm = 'SternJudging'):
+
+		self.numNodes = numNodes # Number of nodes
+		self.prob1 = prob1 # Rewire probability for Watts-Strogatz - L1
+		self.prob2 = prob2 # Rewire probability for Watts-Strogatz - L2
 		self.avgDegree = avgDegree
 		self.numGenerations = numGenerations
 		self.logFreq = logFreq # Generate graphs at every X simulations
 		self.cost = cost # Donation Game
 		self.benefit = benefit # Donation Game
+		self.beta=beta
+		self.transError = transError
+		self.mutation = mutation
 		self.socialNorm = socialNorm # Global social norm (the entire population follows this)
-		self.gephi = gephiFileName
-
+		self.gephi = gephiFileName # File name for the gephi export
 		self.layer1 = layer1 # Layer1 topology
 		self.layer2 = layer2 # Layer2 topology
+		self.update = update
 
 		self.idIterator = 0
 		self.idToIndex = {}  # id:index
@@ -30,13 +35,11 @@ class IndirectReciprocityMultiplexNetworks:
 
 	def initiateNodes(self):
 
-		initialStrategies = self.calculateInitialStrategies()
-
 		if self.layer1 == 'Random':
 			self.layer1 = MultiplexNetwork(self.numNodes, self.avgDegree)
 
 		elif self.layer1 == 'WattsStrogatz':
-			self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob)
+			self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob1)
 
 		elif self.layer1 == 'BarabasiAlbert':
 			self.layer1 = barabasiAlbert(self.numNodes, self.avgDegree)
@@ -49,7 +52,7 @@ class IndirectReciprocityMultiplexNetworks:
 			self.layer2 = MultiplexNetwork(self.numNodes, self.avgDegree)
 
 		elif self.layer2 == 'WattsStrogatz':
-			self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob)
+			self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob2)
 
 		elif self.layer2 == 'BarabasiAlbert':
 			self.layer2 = barabasiAlbert(self.numNodes, self.avgDegree)
@@ -67,8 +70,7 @@ class IndirectReciprocityMultiplexNetworks:
 				'pos': self.nodePos[i], # Redundante?
 				'id': self.idIterator,
 				'payoff': 0,
-				#'reputation': self.calculateInitialReputation(), # Not used because each node has its own perception of all others
-				'strategy': initialStrategies[i],
+				'strategy': self.calculateInitialStrategy(),
 				'viz': None
 			})
 
@@ -93,44 +95,65 @@ class IndirectReciprocityMultiplexNetworks:
 
 		return initialReputation
 
-	def calculateInitialStrategies(self): # Randomly attribute an initial strategy
-		initialStrategies = []
-		for _ in range(self.numNodes):
-			rand = random.randrange(4)
-			if rand == 0:
-				initialStrategies.append('AllC')
-			elif rand == 1:
-				initialStrategies.append('AllD')
-			elif rand == 2:
-				initialStrategies.append('Disc')
-			elif rand == 3:
-				initialStrategies.append('pDisc')
+	def calculateInitialStrategy(self): # Randomly attribute an initial strategy
 
-		return initialStrategies
+		rand = random.randrange(4)
+		if rand == 0:
+			initialStrategy = 'AllC'
+		elif rand == 1:
+			initialStrategy = 'AllD'
+		elif rand == 2:
+			initialStrategy = 'Disc'
+		else:
+			initialStrategy = 'pDisc'
+
+		return initialStrategy
 
 	def runSimulation(self):
 		print('=====    Initiating simulation   ======')
-		LogsPerGen=[]
-		for i in range(self.numGenerations):
-			lg = self.runGeneration()
-			lg['generation'] = i
-			l = None
+		if self.update == 'Synchronous':
+			LogsPerGen=[]
+			for i in range(self.numGenerations):
+				lg = self.runGeneration()
+				lg['generation'] = i
+				l = None
 
-			if i % self.logFreq == 0:
-				print('== Logging {} =='.format(i))
-				#l = self.LogsPerGen(i)
-				#drawGraph(self.layer1, self.nodes, dir, i)
+				if i % self.logFreq == 0:
+					print('== Logging {} =='.format(i))
+					#l = self.LogsPerGen(i)
+					#drawGraph(self.layer1, self.nodes, dir, i)
 
-			self.socialLearning()
+				self.socialLearning()
 
-			if l != None:
-				lg.update(l)
+				if l != None:
+					lg.update(l)
 
-			LogsPerGen.append(lg)
+				LogsPerGen.append(lg)
+
+		elif self.update == 'Asynchronous':
+			LogsPerGen = []
+			for i in range(self.numGenerations):
+				lg = self.runGenerationAsynchronous()
+				lg['generation'] = i
+				l = None
+
+				if i % self.logFreq == 0:
+					print('== Logging {} =='.format(i))
+				# l = self.LogsPerGen(i)
+				# drawGraph(self.layer1, self.nodes, dir, i)
+
+				if l != None:
+					lg.update(l)
+
+				LogsPerGen.append(lg)
+		else:
+			print('Wrong update method')
+			exit()
 
 		self.runVisualization()
+		coopRatio = calculateAverage(LogsPerGen,'cooperationRatio', self.numGenerations)
 
-		print(LogsPerGen)
+		print(coopRatio)
 
 	def runGeneration(self):
 
@@ -144,7 +167,6 @@ class IndirectReciprocityMultiplexNetworks:
 		cooperationRatio = actionFreq['Cooperate'] if 'Cooperate' in actionFreq.keys() else 0
 
 		# todo - Add stationary fraction of good and bad reputations
-		# # print(self.nodes)
 		return {'cooperationRatio': cooperationRatio}
 
 	def runInteraction(self, pair): # Donation Game
@@ -171,27 +193,46 @@ class IndirectReciprocityMultiplexNetworks:
 
 	def runGossip(self, pair, action):
 		# The neighbors of the gossiper on layer 2 will update their perception of the donor
-		gossiper = getGossiper(self.layer1, pair[0], self.nodes, self.nodePos)
+		gossiper = pickNeighbor(self.layer1, pair[0], self.nodes, self.nodePos)
 		updatePerception(self.socialNorm, gossiper, pair[0], pair[1], action)
-
 		neighbors = self.layer2.neighbors(gossiper['pos'])
 		for neighbor in neighbors:
-			self.nodes[neighbor]['perception'][pair[0]['pos']]['reputation'] = gossiper['perception'][pair[0]['pos']]['reputation']
-			# todo - add chance for transmission error to occur
+			if probability(self.transError): # Transmission Error
+				if gossiper['perception'][pair[0]['pos']]['reputation'] == 'Good':
+					self.nodes[neighbor]['perception'][pair[0]['pos']]['reputation'] = 'Bad'
+				else:
+					self.nodes[neighbor]['perception'][pair[0]['pos']]['reputation'] = 'Good'
+			else:
+				self.nodes[neighbor]['perception'][pair[0]['pos']]['reputation'] = gossiper['perception'][pair[0]['pos']]['reputation']
 			# to repeat this for the neighbors' neighbors, simply make this function recursive
 
 	def socialLearning(self):
 		# social learning where nodes copy another node's strategy with a given probability if
 		# that node's payoff is higher
+
+		for node in self.nodes:
+			neighbor = pickNeighbor(self.layer1, node, self.nodes, self.nodePos)
+			if probability(self.mutation):
+				node['strategy'] = self.calculateInitialStrategy()
+			elif neighbor['payoff'] > node['payoff']:
+				prob = 1 / (1 + math.exp(-self.beta * (neighbor['payoff'] - node['payoff'])))
+				if probability(prob):
+					node['strategy'] = neighbor['strategy']
+
+		# Code below is to compare a node's fitness with all neighbors
+		'''
 		interactionPairs = getNeighborPairs(self.layer1, self.nodes, self.nodePos)
-		beta = 10
+
 		for pair in interactionPairs:
 			mine = pair[0]
 			partner = pair[1]
-			if partner['payoff'] > mine['payoff']:
+			if probability(self.mutation):
+				mine['strategy'] = self.calculateInitialStrategy()
+			elif partner['payoff'] > mine['payoff']:
 				prob = 1 / (1 + math.exp(-beta * (partner['payoff'] - mine['payoff'])))
 				if probability(prob):
 					mine['strategy'] = partner['strategy']
+		'''
 
 	def runVisualization(self):
 	# Add node colors for Gephi
@@ -202,7 +243,7 @@ class IndirectReciprocityMultiplexNetworks:
 				self.nodes[item['pos']]['viz'] = {'color': {'r': 255, 'g': 0, 'b': 0, 'a': 0}}
 			elif item['strategy'] == 'Disc': # Green
 				self.nodes[item['pos']]['viz'] = {'color': {'r': 0, 'g': 255, 'b': 0, 'a': 0}}
-			elif item['strategy'] == 'pDisc':
+			elif item['strategy'] == 'pDisc': # Green and Blue
 				self.nodes[item['pos']]['viz'] = {'color': {'r': 0, 'g': 255, 'b': 255, 'a': 0}}
 
 		# fixme - simpler way of doing this
@@ -217,25 +258,63 @@ class IndirectReciprocityMultiplexNetworks:
 
 		nx.write_gexf(self.layer1, self.gephi)
 
+	def runGenerationAsynchronous(self):
+		arr = []
+		cooperationRatio = 0
+		for node in self.nodes:
+
+			if probability(self.mutation):
+				node['strategy'] = self.calculateInitialStrategy()
+			else:
+				neighbor = pickNeighbor(self.layer1, node, self.nodes, self.nodePos)
+				arr.append([node['pos'], neighbor['pos']])
+
+				interactionPairs = getNeighborsAsynchronous(self.layer1, node, neighbor, arr, self.nodes, self.nodePos)
+				actions = []
+				for j, pair in enumerate(interactionPairs):
+					actions.append(self.runInteraction(pair))
+					self.runGossip(pair, actions[-1])  # Update perceptions of the gossiper's neighbors in L2
+
+				self.socialLearningAsynchronous(node,neighbor)
+				actionFreq = countFreq(actions)
+				cooperationRatio = actionFreq['Cooperate'] if 'Cooperate' in actionFreq.keys() else 0
+
+		# todo - Add stationary fraction of good and bad reputations
+		return {'cooperationRatio': cooperationRatio}
+
+	def socialLearningAsynchronous(self,node,neighbor):
+		# social learning where nodes copy another node's strategy with a given probability if
+		# that node's payoff is higher
+		if neighbor['payoff'] > node['payoff']:
+			prob = 1 / (1 + math.exp(-self.beta * (neighbor['payoff'] - node['payoff'])))
+			if probability(prob):
+				node['strategy'] = neighbor['strategy']
+
 if __name__ == "__main__":
 	# Variables used
 	initialValues = {
 		'numNodes': 100, # Number of nodes
-		'prob': 0.25, # Probability of rewiring links (WattsStrogatz)
+		'prob1': 0.25, # Probability of rewiring links (WattsStrogatz) for Layer 1
+		'prob2': 0.25, # Probability of rewiring links (WattsStrogatz) for Layer 2
 		'avgDegree': 4,
 		'numGenerations': 10000,
 		'logFreq': 1000,
 		'cost': 0.1, # Cost of cooperation
 		'benefit': 1, # Benefit of receiving cooperation
+		'mutation': 0.01, # Probability of a node adopting a random strategy during Social Learning
+		'transError': 0.01, # Transmission error, in which case an individual gossips wrong information (contrary to his beliefs)
+		'beta': 10, # Pairwise comparison function: p = 1 / (1 + math.exp(-beta * (Fb - Fa)))
 		'gephiFileName': 'test.gexf', # File name used for the gephi export. Must include '.gexf'
 		'layer1': 'WattsStrogatz', # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
-		'layer2': 'WattsStrogatz', # Graph topology: 'WattsStrogatz', 'Random', 'Layer1' (Layers are equal), ...
+		'layer2': 'Layer1', # Graph topology: 'WattsStrogatz', 'Random', 'Layer1' (Layers are equal), ...
+		'update': 'Synchronous', # 'Synchronous' or 'Asynchronous'
 		'socialNorm': 'SternJudging', # SimpleStanding, ImageScoring, Shunning or SternJudging
 
 	}
 
 	changes = [{}]
-	'''changes = [
+	'''
+	changes = [
                #{'gephiFileName':  'SJ.gexf', 'socialNorm': 'SternJudging',}, {'gephiFileName':  'SS.gexf', 'socialNorm': 'SimpleStanding',}, \
                {'gephiFileName':  'IS.gexf', 'socialNorm': 'ImageScoring',}, {'gephiFileName':  'SH.gexf', 'socialNorm': 'Shunning',},
                ]
@@ -254,10 +333,13 @@ if __name__ == "__main__":
 		with open(join(dir, 'config.json'), 'w') as fp:
 			json.dump(config, fp)
 
-	# todo - add mutation to socialLearning - adopt a random strategy
 	# todo - add more graph topologies
 	# todo - reset payoffs and reputations
 	# todo - stationary fraction of good and bad reputations
 	# todo - fix plot labels
 	# todo - Histograms
+	# todo - Perfect Overlap (check), Randomized Neighborhoods, and Total Randomization
+	# todo - calculate clustering coefficient and include it in the results
+
+	# todo - TEST ASYNCHRONOUS
 	# todo - test the entire program

@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from os.path import join
 from itertools import count
 
-
 class MultiplexNetwork(nx.Graph):
     # Generate a random graph with a given average degree and size.
     def __init__(self, numNodes, avgDegree):
@@ -32,29 +31,51 @@ def getNeighborPairs(G, nodeInfo, pos):
     # The index of each node in nodeInfo corresponds to the node with the same index in G.nodes
     # For each node, get all of its neighbors
     pairs = []
+    done = [] # to make sure nodes each link A-B or B-A is only used once
     for it, n in enumerate(nodeInfo):
         neighbors = G.neighbors(n['pos'])
         for neighbor in neighbors:
             neighborIt = pos.index(neighbor)
-            pairs.append([n, nodeInfo[neighborIt]])
+            if neighborIt not in done:
+                pairs.append([n, nodeInfo[neighborIt]])
+        done.append(n['pos'])
+
+    random.shuffle(pairs)
+    return pairs
+
+def getNeighborsAsynchronous(G, node, neighbor, arr, nodeInfo, pos):
+    # The index of each node in nodeInfo corresponds to the node with the same index in G.nodes
+    # For each node, get all of its neighbors
+    pairs = []
+    neighborsA = G.neighbors(node['pos'])
+    for n in neighborsA:
+        neighborIt = pos.index(n)
+        if ([node['pos'],nodeInfo[neighborIt]['pos']] not in arr) and ([nodeInfo[neighborIt]['pos'],node['pos']] not in arr):
+            pairs.append([node, nodeInfo[neighborIt]])
+    neighborsB = G.neighbors(neighbor['pos'])
+    for n in neighborsB:
+        neighborIt = pos.index(n)
+        if ([neighbor['pos'], nodeInfo[neighborIt]['pos']] not in arr) and ([nodeInfo[neighborIt]['pos'], neighbor['pos']] not in arr):
+            pairs.append([neighbor, nodeInfo[neighborIt]])
+
     random.shuffle(pairs)
     return pairs
 
 def getRecipientReputation(donor, recipient):
     return donor['perception'][recipient['id']]['reputation']
 
-def getGossiper(G, donor, nodeInfo, pos):
+def pickNeighbor(G, donor, nodeInfo, pos):
 
     # Choose one of the donor's neighbors who will witness and gossip about the interaction
     neighbors = G.neighbors(donor['pos'])
-    snitch = []
+    arr = []
     for neighbor in neighbors:
         neighborIt = pos.index(neighbor)
-        snitch.append(nodeInfo[neighborIt])
+        arr.append(nodeInfo[neighborIt])
 
-    gossiper = random.choice(snitch)
+    chosen = random.choice(arr)
 
-    return gossiper
+    return chosen
 
 def updatePerception(socialNorm, witness, donor, recipient, action):
     # print('Before: ')
@@ -139,4 +160,11 @@ def countFreq(arr):
     return mp
 
 def probability(percentage):
-    return (random.random() < percentage);
+    return (random.random() < percentage)
+
+def calculateAverage(arr,variable, total):
+    sum = 0
+    for item in arr:
+        sum += item[variable]
+
+    return sum/total
