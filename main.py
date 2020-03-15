@@ -319,6 +319,7 @@ if __name__ == "__main__":
                {'gephiFileName':  'IS.gexf', 'socialNorm': 'ImageScoring',}, {'gephiFileName':  'SH.gexf', 'socialNorm': 'Shunning',},
                ]
     '''
+	#changes = [{'update': 'Synchronous',},{'update': 'Asynchronous',}]
 
 	for j, c in enumerate(changes):
 		config = initialValues.copy()
@@ -333,12 +334,12 @@ if __name__ == "__main__":
 		with open(join(dir, 'config.json'), 'w') as fp:
 			json.dump(config, fp)
 
+	# todo - Perfect Overlap (check), Randomized Neighborhoods, and Total Randomization
 	# todo - add more graph topologies
 	# todo - reset payoffs and reputations
 	# todo - stationary fraction of good and bad reputations
 	# todo - fix plot labels
 	# todo - Histograms
-	# todo - Perfect Overlap (check), Randomized Neighborhoods, and Total Randomization
 	# todo - calculate clustering coefficient and include it in the results
 
 	# todo - TEST ASYNCHRONOUS
