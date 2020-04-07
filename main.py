@@ -10,7 +10,7 @@ import json
 class IndirectReciprocityMultiplexNetworks:
 
 	nodes = []
-	def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree=2, numGenerations=100, logFreq=1, cost=0.1, benefit=1, transError=0.01,beta=10, update='Synchronous', mutation=0.01, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm = 'SternJudging'):
+	def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree=2, numGenerations=100, logFreq=1, cost=0.1, benefit=1, transError=0.01,beta=10, update='Synchronous', mutation=0.01,rndSeed=None, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm = 'SternJudging', fractionNodes = 0.2):
 
 		self.numNodes = numNodes # Number of nodes
 		self.prob1 = prob1 # Rewire probability for Watts-Strogatz - L1
@@ -21,6 +21,7 @@ class IndirectReciprocityMultiplexNetworks:
 		self.cost = cost # Donation Game
 		self.benefit = benefit # Donation Game
 		self.beta=beta
+		self.rndSeed = rndSeed
 		self.transError = transError
 		self.mutation = mutation
 		self.socialNorm = socialNorm # Global social norm (the entire population follows this)
@@ -28,6 +29,7 @@ class IndirectReciprocityMultiplexNetworks:
 		self.layer1 = layer1 # Layer1 topology
 		self.layer2 = layer2 # Layer2 topology
 		self.update = update
+		self.fractionNodes = fractionNodes
 
 		self.idIterator = 0
 		self.idToIndex = {}  # id:index
@@ -39,10 +41,10 @@ class IndirectReciprocityMultiplexNetworks:
 			self.layer1 = MultiplexNetwork(self.numNodes, self.avgDegree)
 
 		elif self.layer1 == 'WattsStrogatz':
-			self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob1)
+			self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob1, self.rndSeed)
 
 		elif self.layer1 == 'BarabasiAlbert':
-			self.layer1 = barabasiAlbert(self.numNodes, self.avgDegree)
+			self.layer1 = barabasiAlbert(self.numNodes, self.avgDegree, self.rndSeed)
 
 		else:
 			print('Wrong layer1 parameter!')
@@ -52,13 +54,19 @@ class IndirectReciprocityMultiplexNetworks:
 			self.layer2 = MultiplexNetwork(self.numNodes, self.avgDegree)
 
 		elif self.layer2 == 'WattsStrogatz':
-			self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob2)
+			self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob2, self.rndSeed)
 
 		elif self.layer2 == 'BarabasiAlbert':
-			self.layer2 = barabasiAlbert(self.numNodes, self.avgDegree)
+			self.layer2 = barabasiAlbert(self.numNodes, self.avgDegreem, self.rndSeed)
 
-		elif self.layer2 == 'Layer1':
+		elif self.layer2 == 'PerfectOverlap':
 			self.layer2 = self.layer1
+
+		elif self.layer2 == 'RandomizedNeighborhoods':
+			self.layer2 = randomizedNeighborhoods(self.layer1, self.fractionNodes, self.numNodes, self.rndSeed)
+
+		elif self.layer2 == 'TotalRandomization':
+			self.layer2 = totalRandomization(self.layer1, self.numNodes)
 
 		else:
 			print('Wrong layer2 parameter!')
@@ -304,9 +312,12 @@ if __name__ == "__main__":
 		'mutation': 0.01, # Probability of a node adopting a random strategy during Social Learning
 		'transError': 0.01, # Transmission error, in which case an individual gossips wrong information (contrary to his beliefs)
 		'beta': 10, # Pairwise comparison function: p = 1 / (1 + math.exp(-beta * (Fb - Fa)))
+		'rndSeed': None, # Indicator of random number generation state
 		'gephiFileName': 'test.gexf', # File name used for the gephi export. Must include '.gexf'
 		'layer1': 'WattsStrogatz', # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
-		'layer2': 'Layer1', # Graph topology: 'WattsStrogatz', 'Random', 'Layer1' (Layers are equal), ...
+		'layer2': 'TotalRandomization', # Graph topology: 'WattsStrogatz', 'Random', 'PerfectOverlap' (Layers are equal), 'RandomizedNeighborhoods'
+		# (same degree, different neighborhoods), 'TotalRandomization' (degree and neighborhoods are different)
+		'fractionNodes': 0.5, # Fraction of nodes randomized (switch edges) for Randomized Neighborhoods
 		'update': 'Synchronous', # 'Synchronous' or 'Asynchronous'
 		'socialNorm': 'SternJudging', # SimpleStanding, ImageScoring, Shunning or SternJudging
 
@@ -334,7 +345,7 @@ if __name__ == "__main__":
 		with open(join(dir, 'config.json'), 'w') as fp:
 			json.dump(config, fp)
 
-	# todo - Perfect Overlap (check), Randomized Neighborhoods, and Total Randomization
+	# todo - Perfect Overlap (check), Randomized Neighborhoods (check), and Total Randomization (check) - testing required
 	# todo - add more graph topologies
 	# todo - reset payoffs and reputations
 	# todo - stationary fraction of good and bad reputations
@@ -342,5 +353,5 @@ if __name__ == "__main__":
 	# todo - Histograms
 	# todo - calculate clustering coefficient and include it in the results
 
-	# todo - TEST ASYNCHRONOUS
+	# todo - TEST ASYNCHRONOUS AND SYNCHRONOUS - make sure they are working exactly as described
 	# todo - test the entire program

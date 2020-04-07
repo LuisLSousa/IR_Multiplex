@@ -27,6 +27,24 @@ def barabasiAlbert(numNodes, avgDegree,rndSeed=None):
     G = nx.barabasi_albert_graph(numNodes, avgDegree, seed=rndSeed)
     return G
 
+def randomizedNeighborhoods(layer1, fractionNodes, numNodes,rndSeed=None):
+    G = layer1
+    nx.double_edge_swap(G, nswap=fractionNodes*numNodes, max_tries=numNodes*numNodes, seed=rndSeed)
+
+    return G
+
+def totalRandomization(layer1, numNodes):
+    G = layer1
+    print(G.nodes())
+    nodes = list(G)
+    random.shuffle(nodes)
+    mapping={}
+    for n in range(numNodes):
+        mapping.update({n: nodes[n]})
+    G=nx.relabel_nodes(G,mapping)
+    return G
+
+
 def getNeighborPairs(G, nodeInfo, pos):
     # The index of each node in nodeInfo corresponds to the node with the same index in G.nodes
     # For each node, get all of its neighbors
