@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from os.path import join
 from itertools import count
 
+
 class MultiplexNetwork(nx.Graph):
     # Generate a random graph with a given average degree and size.
     def __init__(self, numNodes, avgDegree):
@@ -19,13 +20,16 @@ class MultiplexNetwork(nx.Graph):
     def avg_deg(self):
         return self.number_of_edges() * 2 / self.numNodes
 
+
 def wattsStrogatz(numNodes, avgDegree, prob, rndSeed=None):
     G = nx.watts_strogatz_graph(numNodes,avgDegree, prob, seed=rndSeed)
     return G
 
+
 def barabasiAlbert(numNodes, avgDegree,rndSeed=None):
     G = nx.barabasi_albert_graph(numNodes, avgDegree, seed=rndSeed)
     return G
+
 
 def randomizedNeighborhoods(layer1, fractionNodes, numNodes,rndSeed=None):
     G = layer1
@@ -33,15 +37,16 @@ def randomizedNeighborhoods(layer1, fractionNodes, numNodes,rndSeed=None):
 
     return G
 
+
 def totalRandomization(layer1, numNodes):
     G = layer1
     print(G.nodes())
     nodes = list(G)
     random.shuffle(nodes)
-    mapping={}
+    mapping = {}
     for n in range(numNodes):
         mapping.update({n: nodes[n]})
-    G=nx.relabel_nodes(G,mapping)
+    G = nx.relabel_nodes(G , mapping)
     return G
 
 
@@ -59,16 +64,21 @@ def getNeighborPairs(G, nodeInfo, pos):
         done.append(n['pos'])
 
     random.shuffle(pairs)
+    # To make the donor and the recipient random.
+    # todo - Check if this makes sense!!!!
+    for pair in pairs:
+        random.shuffle(pair)
     return pairs
+
 
 def getNeighborsAsynchronous(G, node, neighbor, arr, nodeInfo, pos):
     # The index of each node in nodeInfo corresponds to the node with the same index in G.nodes
-    # For each node, get all of its neighbors
+    # Get all neighbors of both nodes (donor and recipient)
     pairs = []
     neighborsA = G.neighbors(node['pos'])
     for n in neighborsA:
         neighborIt = pos.index(n)
-        if ([node['pos'],nodeInfo[neighborIt]['pos']] not in arr) and ([nodeInfo[neighborIt]['pos'],node['pos']] not in arr):
+        if ([node['pos'], nodeInfo[neighborIt]['pos']] not in arr) and ([nodeInfo[neighborIt]['pos'], node['pos']] not in arr):
             pairs.append([node, nodeInfo[neighborIt]])
     neighborsB = G.neighbors(neighbor['pos'])
     for n in neighborsB:
@@ -77,10 +87,17 @@ def getNeighborsAsynchronous(G, node, neighbor, arr, nodeInfo, pos):
             pairs.append([neighbor, nodeInfo[neighborIt]])
 
     random.shuffle(pairs)
+
+    # To make the donor and the recipient random.
+    # todo - Check if this makes sense!!!!
+    for pair in pairs:
+        random.shuffle(pair)
     return pairs
+
 
 def getRecipientReputation(donor, recipient):
     return donor['perception'][recipient['id']]['reputation']
+
 
 def pickNeighbor(G, donor, nodeInfo, pos):
 
@@ -94,6 +111,7 @@ def pickNeighbor(G, donor, nodeInfo, pos):
     chosen = random.choice(arr)
 
     return chosen
+
 
 def updatePerception(socialNorm, witness, donor, recipient, action):
     # print('Before: ')
@@ -141,6 +159,7 @@ def updatePerception(socialNorm, witness, donor, recipient, action):
 
     # witness['perception'][donor['pos']]['reputation'] =
 
+
 def drawGraph(G, nodeInfo, dir, it):
 
     # Group nodes according to their strategy
@@ -163,6 +182,7 @@ def drawGraph(G, nodeInfo, dir, it):
     plt.savefig(join(dir, 'graph{}.png'.format(it)))
     plt.close()
 
+
 def countFreq(arr):
     mp = dict()
     # Traverse through array elements and count frequencies
@@ -177,10 +197,12 @@ def countFreq(arr):
         mp[k] = mp[k]/len(arr)
     return mp
 
+
 def probability(percentage):
     return (random.random() < percentage)
 
-def calculateAverage(arr,variable, total):
+
+def calculateAverage(arr, varicable, total):
     sum = 0
     for item in arr:
         sum += item[variable]
