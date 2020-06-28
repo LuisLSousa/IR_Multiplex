@@ -211,6 +211,23 @@ def countFreq(arr):
     return mp
 
 
+def stationaryFraction(nodes):
+    good = 0
+    bad = 0
+    for i in nodes:
+        for j in range(len(nodes)):
+            if i['perception'][j]['reputation'] == 'Good':
+                good += 1
+            else:
+                bad += 1
+
+    statGood = good/(good+bad)
+    statBad = bad/(good+bad)
+
+    return [statGood, statBad]
+    # print(self.nodes[3]['perception'][7]['reputation'])
+
+
 def probability(chance):
     return random.random() <= chance
 
