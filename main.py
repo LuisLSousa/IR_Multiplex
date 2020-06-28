@@ -10,7 +10,7 @@ import json
 class IndirectReciprocityMultiplexNetworks:
 
 	nodes = []
-	def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree=2, numGenerations=100, logFreq=1, cost=0.1, benefit=1, transError=0.01,beta=10, update='Synchronous', mutation=0.01,rndSeed=None, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm = 'SternJudging', fractionNodes = 0.2):
+	def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree=2, numGenerations=100, logFreq=1, cost=0.1, benefit=1, transError=0.01,beta=10, update='Synchronous', explorationRate=0.01,rndSeed=None, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm = 'SternJudging', fractionNodes = 0.2):
 
 		self.numNodes = numNodes # Number of nodes
 		self.prob1 = prob1 # Rewire probability for Watts-Strogatz - L1
@@ -20,10 +20,10 @@ class IndirectReciprocityMultiplexNetworks:
 		self.logFreq = logFreq # Generate graphs at every X simulations
 		self.cost = cost # Donation Game
 		self.benefit = benefit # Donation Game
-		self.beta=beta
+		self.beta = beta
 		self.rndSeed = rndSeed
 		self.transError = transError
-		self.mutation = mutation
+		self.explorationRate = explorationRate
 		self.socialNorm = socialNorm # Global social norm (the entire population follows this)
 		self.gephi = gephiFileName # File name for the gephi export
 		self.layer1 = layer1 # Layer1 topology
@@ -124,31 +124,24 @@ class IndirectReciprocityMultiplexNetworks:
 			for i in range(self.numGenerations):
 				lg = self.runGeneration()
 				lg['generation'] = i
-				l = None
 				if i % self.logFreq == 0:
 					print('== Logging {} =='.format(i))
-					#l = self.LogsPerGen(i)
 					#drawGraph(self.layer1, self.nodes, dir, i)
 
 				self.socialLearning()
-				if l != None:
-					lg.update(l)
-
 				LogsPerGen.append(lg)
+
+				# reset payoffs after each generation - this worsens cooperation under SJ, L1 = WattsStrogatz, L2=PerfOv
+				#for node in self.nodes:
+				#	node['payoff'] = 0
 
 		elif self.update == 'Asynchronous':
 			for i in range(self.numGenerations):
 				lg = self.runGenerationAsynchronous()
 				lg['generation'] = i
-				l = None
-
 				if i % self.logFreq == 0:
 					print('== Logging {} =='.format(i))
-				# l = self.LogsPerGen(i)
 				# drawGraph(self.layer1, self.nodes, dir, i)
-
-				if l != None:
-					lg.update(l)
 
 				LogsPerGen.append(lg)
 		else:
@@ -156,9 +149,10 @@ class IndirectReciprocityMultiplexNetworks:
 			exit()
 
 		self.runVisualization()
-		coopRatio = calculateAverage(LogsPerGen,'cooperationRatio', self.numGenerations)
+		coopRatio = calculateAverage(LogsPerGen, 'cooperationRatio', self.numGenerations)
 
-		print(coopRatio)
+		print("CoopRatio:", coopRatio)
+		print("Last gen: ", LogsPerGen[self.numGenerations])
 
 	def runGeneration(self):
 		interactionPairs = getNeighborPairs(self.layer1, self.nodes, self.nodePos)
@@ -214,13 +208,16 @@ class IndirectReciprocityMultiplexNetworks:
 		# that node's payoff is higher
 
 		for node in self.nodes:
-			neighbor = pickNeighbor(self.layer1, node, self.nodes, self.nodePos)
-			if probability(self.mutation):
+			# Probability of exploring a random strategy
+			if probability(self.explorationRate):
 				node['strategy'] = self.calculateInitialStrategy()
-			elif neighbor['payoff'] > node['payoff']:
-				prob = 1 / (1 + math.exp(-self.beta * (neighbor['payoff'] - node['payoff'])))
-				if probability(prob):
-					node['strategy'] = neighbor['strategy']
+			# Fitness comparison
+			else:
+				neighbor = pickNeighbor(self.layer1, node, self.nodes, self.nodePos)
+				if neighbor['payoff'] > node['payoff']:
+					prob = 1 / (1 + math.exp(-self.beta * (neighbor['payoff'] - node['payoff'])))
+					if probability(prob):
+						node['strategy'] = neighbor['strategy']
 
 		# Code below is to compare a node's fitness with all neighbors
 		'''
@@ -229,7 +226,7 @@ class IndirectReciprocityMultiplexNetworks:
 		for pair in interactionPairs:
 			mine = pair[0]
 			partner = pair[1]
-			if probability(self.mutation):
+			if probability(self.explorationRate):
 				mine['strategy'] = self.calculateInitialStrategy()
 			elif partner['payoff'] > mine['payoff']:
 				prob = 1 / (1 + math.exp(-beta * (partner['payoff'] - mine['payoff'])))
@@ -264,21 +261,22 @@ class IndirectReciprocityMultiplexNetworks:
 		arr = []
 		cooperationRatio = 0
 		for node in self.nodes:
-			if probability(self.mutation):
+			if probability(self.explorationRate):
 				node['strategy'] = self.calculateInitialStrategy()
 			else:
 				neighbor = pickNeighbor(self.layer1, node, self.nodes, self.nodePos)
-				arr.append([node['pos'], neighbor['pos']])
-				interactionPairs = getNeighborsAsynchronous(self.layer1, node, neighbor, arr, self.nodes, self.nodePos)
-				actions = []
-				for j, pair in enumerate(interactionPairs):
-					actions.append(self.runInteraction(pair))
-					self.runGossip(pair, actions[-1])  # Update perceptions of the gossiper's neighbors in L2
+				if neighbor:  # Only if the node has neighbors
+					arr.append([node['pos'], neighbor['pos']])
+					interactionPairs = getNeighborsAsynchronous(self.layer1, node, neighbor, arr, self.nodes, self.nodePos)
+					actions = []
+					for j, pair in enumerate(interactionPairs):
+						actions.append(self.runInteraction(pair))
+						self.runGossip(pair, actions[-1])  # Update perceptions of the gossiper's neighbors in L2
 
-				self.socialLearningAsynchronous(node, neighbor)
-				actionFreq = countFreq(actions)
-				cooperationRatio = actionFreq['Cooperate'] if 'Cooperate' in actionFreq.keys() else 0
-		# todo - check this function: should each node play with every neighbor or only with 1?
+					self.socialLearningAsynchronous(node, neighbor)
+					actionFreq = countFreq(actions)
+					cooperationRatio = actionFreq['Cooperate'] if 'Cooperate' in actionFreq.keys() else 0
+		# todo - check this function: should each node compare strategy with every neighbor or only with 1?
 		# todo - Add stationary fraction of good and bad reputations
 		return {'cooperationRatio': cooperationRatio}
 
@@ -296,17 +294,17 @@ if __name__ == "__main__":
 		'prob1': 0.25,  # Probability of rewiring links (WattsStrogatz) for Layer 1
 		'prob2': 0.25,  # Probability of rewiring links (WattsStrogatz) for Layer 2
 		'avgDegree': 4,
-		'numGenerations': 10000,
+		'numGenerations': 3000,
 		'logFreq': 1000,
 		'cost': 0.1,  # Cost of cooperation
 		'benefit': 1,  # Benefit of receiving cooperation
-		'mutation': 0.01,  # Probability of a node adopting a random strategy during Social Learning
+		'explorationRate': 0.01,  # Probability of a node adopting a random strategy during Social Learning
 		'transError': 0.01,  # Transmission error, in which case an individual gossips wrong information (contrary to his beliefs)
 		'beta': 1,  # Pairwise comparison function: p = 1 / (1 + math.exp(-beta * (Fb - Fa)))
 		'rndSeed': None,  # Indicator of random number generation state
 		'gephiFileName': 'test.gexf',  # File name used for the gephi export. Must include '.gexf'
 		'layer1': 'WattsStrogatz',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
-		'layer2': 'TotalRandomization',  # Graph topology: 'WattsStrogatz', 'Random', 'PerfectOverlap' (Layers are equal), 'RandomizedNeighborhoods'
+		'layer2': 'PerfectOverlap',  # Graph topology: 'WattsStrogatz', 'Random', 'PerfectOverlap' (Layers are equal), 'RandomizedNeighborhoods'
 		# (same degree, different neighborhoods), 'TotalRandomization' (degree and neighborhoods are different)
 		'fractionNodes': 0.5,  # Fraction of nodes randomized (switch edges) for Randomized Neighborhoods
 		'update': 'Synchronous',  # 'Synchronous' or 'Asynchronous'
@@ -336,8 +334,7 @@ if __name__ == "__main__":
 		with open(join(dir, 'config.json'), 'w') as fp:
 			json.dump(config, fp)
 
-	# fixme - There may be some problem in the implementation. Currently working as pair[donor, recipient],
-	#  should be pair[random, other]. Also, instead of looping through all nodes maybe picking a random node each time?
+	# fixme - Instead of looping through all nodes maybe picking a random node each time?
 
 	# fixme (MAYBE) - instead of "for node in nodes", for i in range(N): random node
 

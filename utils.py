@@ -40,7 +40,6 @@ def randomizedNeighborhoods(layer1, fractionNodes, numNodes,rndSeed=None):
 
 def totalRandomization(layer1, numNodes):
     G = layer1
-    print(G.nodes())
     nodes = list(G)
     random.shuffle(nodes)
     mapping = {}
@@ -54,20 +53,26 @@ def getNeighborPairs(G, nodeInfo, pos):
     # The index of each node in nodeInfo corresponds to the node with the same index in G.nodes
     # For each node, get all of its neighbors
     pairs = []
-    done = [] # to make sure nodes each link A-B or B-A is only used once
+    done = [] # to make sure each link A-B or B-A is only used once
     for it, n in enumerate(nodeInfo):
         neighbors = G.neighbors(n['pos'])
         for neighbor in neighbors:
             neighborIt = pos.index(neighbor)
             if neighborIt not in done:
-                pairs.append([n, nodeInfo[neighborIt]])
+                # todo - add for cycle with number of times they play. E.g.:
+                # for i in range(S):
+                #   pairs.append([n, nodeInfo[neighborIt]])
+
+                # 50/50 chance of playing as a donor or a recipient
+                if probability(0.5):
+                    pairs.append([n, nodeInfo[neighborIt]])
+                else:
+                    pairs.append([nodeInfo[neighborIt],n])
+
         done.append(n['pos'])
 
     random.shuffle(pairs)
-    # To make the donor and the recipient random.
-    # todo - Check if this makes sense!!!!
-    for pair in pairs:
-        random.shuffle(pair)
+
     return pairs
 
 
@@ -79,19 +84,25 @@ def getNeighborsAsynchronous(G, node, neighbor, arr, nodeInfo, pos):
     for n in neighborsA:
         neighborIt = pos.index(n)
         if ([node['pos'], nodeInfo[neighborIt]['pos']] not in arr) and ([nodeInfo[neighborIt]['pos'], node['pos']] not in arr):
-            pairs.append([node, nodeInfo[neighborIt]])
+            # 50/50 chance of playing as a donor or a recipient
+            if probability(0.5):
+                pairs.append([node, nodeInfo[neighborIt]])
+            else:
+                pairs.append([nodeInfo[neighborIt], node])
+
+    # fixme this function is all wrong, arr[node,neighbor_comparison] should have arr[node,neighbor_played]
+
     neighborsB = G.neighbors(neighbor['pos'])
     for n in neighborsB:
         neighborIt = pos.index(n)
         if ([neighbor['pos'], nodeInfo[neighborIt]['pos']] not in arr) and ([nodeInfo[neighborIt]['pos'], neighbor['pos']] not in arr):
-            pairs.append([neighbor, nodeInfo[neighborIt]])
+            if probability(0.5):
+                pairs.append([neighbor, nodeInfo[neighborIt]])
+            else:
+                pairs.append([nodeInfo[neighborIt], neighbor])
 
     random.shuffle(pairs)
 
-    # To make the donor and the recipient random.
-    # todo - Check if this makes sense!!!!
-    for pair in pairs:
-        random.shuffle(pair)
     return pairs
 
 
@@ -108,9 +119,11 @@ def pickNeighbor(G, donor, nodeInfo, pos):
         neighborIt = pos.index(neighbor)
         arr.append(nodeInfo[neighborIt])
 
-    chosen = random.choice(arr)
-
-    return chosen
+    if arr:
+        chosen = random.choice(arr)
+        return chosen
+    else:
+        return None
 
 
 def updatePerception(socialNorm, witness, donor, recipient, action):
@@ -198,11 +211,11 @@ def countFreq(arr):
     return mp
 
 
-def probability(percentage):
-    return (random.random() < percentage)
+def probability(chance):
+    return random.random() <= chance
 
 
-def calculateAverage(arr, varicable, total):
+def calculateAverage(arr, variable, total):
     sum = 0
     for item in arr:
         sum += item[variable]
