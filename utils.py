@@ -49,7 +49,7 @@ def totalRandomization(layer1, numNodes):
     return G
 
 
-def getNeighborPairs(G, nodeInfo, pos):
+def getNeighborPairs(G, nodeInfo, pos, numInteractions):
     # The index of each node in nodeInfo corresponds to the node with the same index in G.nodes
     # For each node, get all of its neighbors
     pairs = []
@@ -59,15 +59,12 @@ def getNeighborPairs(G, nodeInfo, pos):
         for neighbor in neighbors:
             neighborIt = pos.index(neighbor)
             if neighborIt not in done:
-                # todo - add for cycle with number of times they play. E.g.:
-                # for i in range(S):
-                #   pairs.append([n, nodeInfo[neighborIt]])
-
-                # 50/50 chance of playing as a donor or a recipient
-                if probability(0.5):
-                    pairs.append([n, nodeInfo[neighborIt]])
-                else:
-                    pairs.append([nodeInfo[neighborIt],n])
+                for i in range(numInteractions):  # Number of times the node plays with each neighbor
+                    # 50/50 chance of playing as a donor or a recipient
+                    if probability(0.5):
+                        pairs.append([n, nodeInfo[neighborIt]])
+                    else:
+                        pairs.append([nodeInfo[neighborIt], n])
 
         done.append(n['pos'])
 
@@ -76,32 +73,22 @@ def getNeighborPairs(G, nodeInfo, pos):
     return pairs
 
 
-def getNeighborsAsynchronous(G, node, neighbor, arr, nodeInfo, pos):
+def getNeighborsAsynchronous(G, chosen_nodes, nodeInfo, pos, numInteractions):
     # The index of each node in nodeInfo corresponds to the node with the same index in G.nodes
     # Get all neighbors of both nodes (donor and recipient)
     pairs = []
-    neighborsA = G.neighbors(node['pos'])
-    for n in neighborsA:
-        neighborIt = pos.index(n)
-        if ([node['pos'], nodeInfo[neighborIt]['pos']] not in arr) and ([nodeInfo[neighborIt]['pos'], node['pos']] not in arr):
-            # 50/50 chance of playing as a donor or a recipient
-            if probability(0.5):
-                pairs.append([node, nodeInfo[neighborIt]])
-            else:
-                pairs.append([nodeInfo[neighborIt], node])
+    for node in chosen_nodes:
+        neighbors = G.neighbors(node['pos'])
+        for n in neighbors:
+            neighborIt = pos.index(n)
+            for i in range(numInteractions):
+                # 50/50 chance of playing as a donor or a recipient
+                if probability(0.5):
+                    pairs.append([node, nodeInfo[neighborIt]])
+                else:
+                    pairs.append([nodeInfo[neighborIt], node])
 
-    # fixme this function is all wrong, arr[node,neighbor_comparison] should have arr[node,neighbor_played]
-
-    neighborsB = G.neighbors(neighbor['pos'])
-    for n in neighborsB:
-        neighborIt = pos.index(n)
-        if ([neighbor['pos'], nodeInfo[neighborIt]['pos']] not in arr) and ([nodeInfo[neighborIt]['pos'], neighbor['pos']] not in arr):
-            if probability(0.5):
-                pairs.append([neighbor, nodeInfo[neighborIt]])
-            else:
-                pairs.append([nodeInfo[neighborIt], neighbor])
-
-    random.shuffle(pairs)
+    random.shuffle(pairs)  # fixme - This may be unnecessary
 
     return pairs
 
@@ -110,15 +97,13 @@ def getRecipientReputation(donor, recipient):
     return donor['perception'][recipient['id']]['reputation']
 
 
-def pickNeighbor(G, donor, nodeInfo, pos):
-
-    # Choose one of the donor's neighbors who will witness and gossip about the interaction
-    neighbors = G.neighbors(donor['pos'])
+def pickNeighbor(G, node, nodeInfo, pos):
+    # Pick a neighbor
+    neighbors = G.neighbors(node['pos'])
     arr = []
     for neighbor in neighbors:
         neighborIt = pos.index(neighbor)
         arr.append(nodeInfo[neighborIt])
-
     if arr:
         chosen = random.choice(arr)
         return chosen
@@ -214,17 +199,38 @@ def countFreq(arr):
 def stationaryFraction(nodes):
     good = 0
     bad = 0
+    repAllC = [0, 0]  # [no. of good, no. of bad] reputations with strategy AllC
+    repAllD = [0, 0]
+    repDisc = [0, 0]
+    repPDisc = [0, 0]
     for i in nodes:
         for j in range(len(nodes)):
             if i['perception'][j]['reputation'] == 'Good':
                 good += 1
+                if nodes[j]['strategy'] == 'AllC':
+                    repAllC[0] += 1
+                elif nodes[j]['strategy'] == 'AllD':
+                    repAllD[0] += 1
+                elif nodes[j]['strategy'] == 'Disc':
+                    repDisc[0] += 1
+                elif nodes[j]['strategy'] == 'pDisc':
+                    repPDisc[0] += 1
             else:
                 bad += 1
+                if nodes[j]['strategy'] == 'AllC':
+                    repAllC[1] += 1
+                elif nodes[j]['strategy'] == 'AllD':
+                    repAllD[1] += 1
+                elif nodes[j]['strategy'] == 'Disc':
+                    repDisc[1] += 1
+                elif nodes[j]['strategy'] == 'pDisc':
+                    repPDisc[1] += 1
 
     statGood = good/(good+bad)
     statBad = bad/(good+bad)
+    numRep = [repAllC, repAllD, repDisc, repPDisc]
 
-    return [statGood, statBad]
+    return [statGood, statBad], numRep
     # print(self.nodes[3]['perception'][7]['reputation'])
 
 
