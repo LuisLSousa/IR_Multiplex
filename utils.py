@@ -22,18 +22,18 @@ class MultiplexNetwork(nx.Graph):
 
 
 def wattsStrogatz(numNodes, avgDegree, prob, rndSeed=None):
-    G = nx.watts_strogatz_graph(numNodes,avgDegree, prob, seed=rndSeed)
+    G = nx.watts_strogatz_graph(numNodes, avgDegree, prob, seed=rndSeed)
     return G
 
 
-def barabasiAlbert(numNodes, avgDegree,rndSeed=None):
+def barabasiAlbert(numNodes, avgDegree, rndSeed=None):
     G = nx.barabasi_albert_graph(numNodes, avgDegree, seed=rndSeed)
     return G
 
 
-def randomizedNeighborhoods(layer1, fractionNodes, numNodes,rndSeed=None):
+def randomizedNeighborhoods(layer1, fractionNodes, numNodes, rndSeed=None):
     G = layer1
-    nx.double_edge_swap(G, nswap=fractionNodes*numNodes, max_tries=numNodes*numNodes, seed=rndSeed)
+    nx.double_edge_swap(G, nswap=fractionNodes * numNodes, max_tries=numNodes * numNodes, seed=rndSeed)
 
     return G
 
@@ -45,15 +45,37 @@ def totalRandomization(layer1, numNodes):
     mapping = {}
     for n in range(numNodes):
         mapping.update({n: nodes[n]})
-    G = nx.relabel_nodes(G , mapping)
+    G = nx.relabel_nodes(G, mapping)
     return G
+
+
+def calculateInitialReputation():  # Randomly attribute a good or bad reputation
+    if random.choice([0, 1]) == 0:
+        initialReputation = 'Good'
+    else:
+        initialReputation = 'Bad'
+
+    return initialReputation
+
+
+def calculateInitialStrategy():  # Randomly attribute an initial strategy
+    rand = random.randrange(4)
+    if rand == 0:
+        initialStrategy = 'AllC'
+    elif rand == 1:
+        initialStrategy = 'AllD'
+    elif rand == 2:
+        initialStrategy = 'Disc'
+    else:
+        initialStrategy = 'pDisc'
+    return initialStrategy
 
 
 def getNeighborPairs(G, nodeInfo, pos, numInteractions):
     # The index of each node in nodeInfo corresponds to the node with the same index in G.nodes
     # For each node, get all of its neighbors
     pairs = []
-    done = [] # to make sure each link A-B or B-A is only used once
+    done = []  # to make sure each link A-B or B-A is only used once
     for it, n in enumerate(nodeInfo):
         neighbors = G.neighbors(n['pos'])
         for neighbor in neighbors:
@@ -145,7 +167,7 @@ def updatePerception(socialNorm, witness, donor, recipient, action):
         elif action == 'Defect':
             witness['perception'][donor['pos']]['reputation'] = 'Bad'
         else:
-            print('Error: Action is neither "Cooperate" nor "Defect" ' )
+            print('Error: Action is neither "Cooperate" nor "Defect" ')
             exit()
 
     else:
@@ -158,26 +180,26 @@ def updatePerception(socialNorm, witness, donor, recipient, action):
     # witness['perception'][donor['pos']]['reputation'] =
 
 
-def drawGraph(G, nodeInfo, dir, it):
-
+def drawGraph(G, nodeInfo, directory, it):
     # Group nodes according to their strategy
     arr = ['AllC', 'AllD', 'Disc', 'pDisc']
     groups = set(arr)
     mapping = dict(zip(sorted(groups), count()))
-    #print(mapping)
+    # print(mapping)
     nodes = G.nodes()
     colors = [mapping[str(n['strategy'])] for n in nodeInfo]
-    #print(colors)
+    # print(colors)
     # Drawing nodes and edges separately in order to capture collection for colorbar
-    #pos = nx.spring_layout(G)
+    # pos = nx.spring_layout(G)
     pos = nx.circular_layout(G)
     ec = nx.draw_networkx_edges(G, pos, alpha=0.2)
-    nc = nx.draw_networkx_nodes(G, pos, nodelist=nodes, node_color=colors, with_labels=False, node_size=50, cmap = plt.jet())
+    nc = nx.draw_networkx_nodes(G, pos, nodelist=nodes, node_color=colors, with_labels=False, node_size=50,
+                                cmap=plt.jet())
     cbar = plt.colorbar(nc, ticks=[0, 1, 2, 3], orientation='vertical')
-    cbar.ax.set_yticklabels(['AllC', 'AllD', 'Disc', 'pDisc']) # Alphabetic order
+    cbar.ax.set_yticklabels(['AllC', 'AllD', 'Disc', 'pDisc'])  # Alphabetic order
     # fixme - when there is only one strategy remaining, it defaults to green
     plt.axis('off')
-    plt.savefig(join(dir, 'graph{}.png'.format(it)))
+    plt.savefig(join(directory, 'graph{}.png'.format(it)))
     plt.close()
 
 
@@ -192,7 +214,7 @@ def countFreq(arr):
 
     # Normalize
     for k in mp.keys():
-        mp[k] = mp[k]/len(arr)
+        mp[k] = mp[k] / len(arr)
     return mp
 
 
@@ -226,8 +248,8 @@ def stationaryFraction(nodes):
                 elif nodes[j]['strategy'] == 'pDisc':
                     repPDisc[1] += 1
 
-    statGood = good/(good+bad)
-    statBad = bad/(good+bad)
+    statGood = good / (good + bad)
+    statBad = bad / (good + bad)
     numRep = [repAllC, repAllD, repDisc, repPDisc]
 
     return [statGood, statBad], numRep
@@ -243,4 +265,4 @@ def calculateAverage(arr, variable, total):
     for item in arr:
         sum += item[variable]
 
-    return sum/total
+    return sum / total
