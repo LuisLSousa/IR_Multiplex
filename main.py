@@ -285,16 +285,16 @@ class IndirectReciprocityMultiplexNetworks:
 if __name__ == "__main__":
     # Variables used
     initialValues = {
-        'numNodes': 100,  # Number of nodes
+        'numNodes': 500,  # Number of nodes
         'prob1': 0.25,  # Probability of rewiring links (WattsStrogatz) for Layer 1
         'prob2': 0.25,  # Probability of rewiring links (WattsStrogatz) for Layer 2
-        'avgDegree': 4,
+        'avgDegree': 8,
         'numGenerations': 5000,
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
         'logFreq': 1000,  # How frequently should the model take logs of the simulation (in generations)
-        'cost': 0.1,  # Cost of cooperation
-        'benefit': 1,  # Benefit of receiving cooperation
-        'explorationRate': 0.01,  # Probability of a node adopting a random strategy during Social Learning
+        'cost': 1,  # Cost of cooperation
+        'benefit': 5,  # Benefit of receiving cooperation
+        'explorationRate': 0,  # Probability of a node adopting a random strategy during Social Learning
         'transError': 0.01,  # Transmission error, in which case an individual gossips wrong information (contrary to his beliefs)
         'beta': 1,  # Pairwise comparison function: p = 1 / (1 + math.exp(-beta * (Fb - Fa)))
         'rndSeed': None,  # Indicator of random number generation state
@@ -304,7 +304,7 @@ if __name__ == "__main__":
         # 'PO' - Perfect Overlap(Layers are equal),
         # 'RN' - Randomized Neighborhoods (same degree, different neighborhoods),
         # 'TR' - Total Randomization (degree and neighborhoods are different)
-        'fractionNodes': 0.5,  # Fraction of nodes randomized (switch edges) for Randomized Neighborhoods
+        'fractionNodes': 0.25,  # Fraction of nodes randomized (switch edges) for Randomized Neighborhoods
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': 'SternJudging',  # SimpleStanding, ImageScoring, Shunning or SternJudging
     }
