@@ -5,6 +5,18 @@ import matplotlib.pyplot as plt
 from os.path import join
 from itertools import count
 
+ringAPL = 0  # Global variable used to normalize the average path length for different values of "p-watts-strogatz"
+prevProbWS = 2  # Used to ensure the graph remains the same when testing several social norms with the same initial state (Watts-Strogatz)
+graph = None  # Used to ensure the graph remains the same when testing several social norms with the same initial state
+AllG = []
+SJ = []
+SS = []
+SH = []
+IS = []
+CC = []
+APL = []
+pWattsStrogatz = []
+
 
 class MultiplexNetwork(nx.Graph):
     # Generate a random graph with a given average degree and size.
@@ -110,7 +122,7 @@ def getNeighborsAsynchronous(G, chosen_nodes, nodeInfo, pos, numInteractions):
                 else:
                     pairs.append([nodeInfo[neighborIt], node])
 
-    random.shuffle(pairs)  # fixme - This may be unnecessary
+    # random.shuffle(pairs)  # fixme - This may be unnecessary
 
     return pairs
 
@@ -170,6 +182,10 @@ def updatePerception(socialNorm, witness, donor, recipient, action):
             print('Error: Action is neither "Cooperate" nor "Defect" ')
             exit()
 
+    # All Good (All actions are deemed good - used to establish a baseline)
+    elif socialNorm == 'AllGood':
+        witness['perception'][donor['pos']]['reputation'] = 'Good'
+
     else:
         print('Wrong socialNorm, check initial parameters')
         exit()
@@ -201,6 +217,52 @@ def drawGraph(G, nodeInfo, directory, it):
     plt.axis('off')
     plt.savefig(join(directory, 'graph{}.png'.format(it)))
     plt.close()
+
+
+def plotValues(coopRatio, socialNorm):
+    global AllG
+    global SJ
+    global SS
+    global IS
+    global SH
+    # Is the above code needed?
+
+    if socialNorm == 'AllGood':
+        AllG.append(coopRatio)
+    elif socialNorm == 'SternJudging':
+        SJ.append(coopRatio)
+    elif socialNorm == 'Shunning':
+        SH.append(coopRatio)
+    elif socialNorm == 'SimpleStanding':
+        SS.append(coopRatio)
+    elif socialNorm == 'ImageScoring':
+        IS.append(coopRatio)
+    else:
+        print("Error, wrong social norm name!")
+        exit()
+
+
+def runLogs(AllG, SJ, SH, IS, SS, CC, APL, pWattsStrogatz, filename):
+    if SJ:
+        plt.plot(pWattsStrogatz, SJ, '^-r', label='SJ')
+    if SH:
+        plt.plot(pWattsStrogatz, SH, '-py', label='SH')
+    if AllG:
+        plt.plot(pWattsStrogatz, AllG, '-sb', label='AllG')
+    if SS:
+        plt.plot(pWattsStrogatz, SS, '<-g', label='SS')
+    if IS:
+        plt.plot(pWattsStrogatz, IS, '-or', label='IS')
+
+    plt.plot(pWattsStrogatz, CC, '-Hg', label='CC')
+    plt.plot(pWattsStrogatz, APL, '-D', label='APL')
+    #plt.xscale('symlog', linthreshx=0.0001)
+    plt.xscale('linear')
+    plt.xlabel("pWattsStrogatz")
+    plt.ylabel("Coop Ratio")
+    plt.legend()
+    plt.savefig(filename)
+    plt.show()
 
 
 def countFreq(arr):
@@ -260,9 +322,9 @@ def probability(chance):
     return random.random() <= chance
 
 
-def calculateAverage(arr, variable, total):
+def calculateAverage(arr, variable):
     sum = 0
     for item in arr:
         sum += item[variable]
 
-    return sum / total
+    return sum / len(arr)
