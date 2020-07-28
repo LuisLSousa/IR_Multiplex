@@ -2,6 +2,7 @@ import networkx as nx
 import math
 import random
 import matplotlib.pyplot as plt
+import os.path
 from os.path import join
 from itertools import count
 
@@ -16,7 +17,6 @@ IS = []
 CC = []
 APL = []
 pWattsStrogatz = []
-
 
 class MultiplexNetwork(nx.Graph):
     # Generate a random graph with a given average degree and size.
@@ -254,8 +254,8 @@ def runLogs(AllG, SJ, SH, IS, SS, CC, APL, pWattsStrogatz, filename):
     if IS:
         plt.plot(pWattsStrogatz, IS, '-or', label='IS')
 
-    plt.plot(pWattsStrogatz, CC, '-Hg', label='CC')
-    plt.plot(pWattsStrogatz, APL, '-D', label='APL')
+    #plt.plot(pWattsStrogatz, CC, '-Hg', label='CC')
+    #plt.plot(pWattsStrogatz, APL, '-D', label='APL')
     #plt.xscale('symlog', linthreshx=0.0001)
     plt.xscale('linear')
     plt.xlabel("pWattsStrogatz")

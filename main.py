@@ -10,7 +10,7 @@ class IndirectReciprocityMultiplexNetworks:
     def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree=2, numGenerations=100, numInteractions=1,
                  logFreq=1, cost=0.1, benefit=1, transError=0.01, executionError=0.01, beta=10, update='Synchronous', explorationRate=0.01,
                  rndSeed=None, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm='SternJudging',
-                 fractionNodes=0.2):
+                 fractionNodes=0.2, logsFileName='logs'):
 
         self.numNodes = numNodes  # Number of nodes
         self.nodes = []
@@ -35,6 +35,7 @@ class IndirectReciprocityMultiplexNetworks:
         self.fractionNodes = fractionNodes
         self.clusteringCoef1 = 0
         self.APL = 0
+        self.logsFileName = logsFileName
 
         if self.numInteractions <= 0:
             print("numInteractions must be > 0")
@@ -131,6 +132,7 @@ class IndirectReciprocityMultiplexNetworks:
         numRep = []  # Number of AllC, AllD, Disc, and pDisc with G and B reputation
         # Stationary fraction of 'Good' and 'Bad' reputations of each gen. statFrac[ [good,bad] , [good,bad], ... ]
         statFrac = []
+
         if self.update == 'Synchronous':
             for i in range(self.numGenerations):
                 lg = self.runGeneration()
@@ -175,17 +177,22 @@ class IndirectReciprocityMultiplexNetworks:
               numRep)  # [ repAllC, repAllD, repDisc, repPDisc]; repAllC = [no. good, no. bad], AllD = ...
         print("CoopRatio:", coopRatio)
         print("Last gen: ", LogsPerGen[-1])
-        print(LogsPerGen)
+        #print(LogsPerGen)
+        
+        # If file doesn't exist, create it
+        if not os.path.isfile(self.logsFileName):
+            f = open(self.logsFileName, "x")
 
-        f = open("plots/logs.txt", "a")
+        f = open(self.logsFileName, "a")
         f.write("######################################")
-        f.write("\n Social Norm: " + self.socialNorm)
-        f.write("\n Probability: " + str(self.prob1))
-        f.write("\n Stationary fraction ( [G, B] ): " + str(statFrac[-1]))
-        f.write("\n Number of reputations [repAllC, repAllD, repDisc, repPDisc]: " + str(numRep))
-        f.write("\n CoopRatio:" + str(coopRatio))
-        f.write("\n" + str(LogsPerGen))
-        f.write("\n")
+        f.write("\nSocial Norm: " + self.socialNorm)
+        f.write("\nProbability: " + str(self.prob1))
+        f.write("\nStationary fraction ( [G, B] ): " + str(statFrac[-1]))
+        f.write("\nNumber of reputations [repAllC, repAllD, repDisc, repPDisc]: " + str(numRep))
+        f.write("\nAverage Cooperation Ratio:" + str(coopRatio))
+        for item in LogsPerGen:
+            f.write("\n" + str(item))
+        f.write("\n\n")
         f.close()
 
     def runGeneration(self):
@@ -332,11 +339,11 @@ class IndirectReciprocityMultiplexNetworks:
 if __name__ == "__main__":
     # Variables used
     initialValues = {
-        'numNodes': 1000,  # Number of nodes
+        'numNodes': 500,  # Number of nodes
         'prob1': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 1
         'prob2': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 2
         'avgDegree': 8,
-        'numGenerations': 500,
+        'numGenerations': 5,
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
         'logFreq': 100,  # How frequently should the model take logs of the simulation (in generations)
         'cost': 1,  # Cost of cooperation
@@ -356,7 +363,11 @@ if __name__ == "__main__":
         'fractionNodes': 0.1,  # Fraction of nodes randomized (switch edges) for Randomized Neighborhoods
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': 'AllGood',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
+        'logsFileName': 'plots/logs.txt',
     }
+
+    changes = [{}] # Default for a single simulation
+
     '''
     changes = [{'prob1': 0, 'socialNorm': 'ImageScoring', },
                {'prob1': 0.00001, 'socialNorm': 'ImageScoring', },
@@ -366,9 +377,6 @@ if __name__ == "__main__":
                {'prob1': 0.1, 'socialNorm': 'ImageScoring', },
                {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]
     '''
-    changes = [{'prob1': 0, 'socialNorm': 'ImageScoring', },
-               {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]
-
     '''
     changes = [{'prob1': 0, 'socialNorm': 'AllGood', },
                {'prob1': 0, 'socialNorm': 'SimpleStanding', },
@@ -412,6 +420,7 @@ if __name__ == "__main__":
                {'prob1': 1, 'socialNorm': 'Shunning', },
                {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]
     '''
+
     for j, c in enumerate(changes):
         config = initialValues.copy()
         config.update(c)
@@ -434,4 +443,4 @@ if __name__ == "__main__":
     # print("CC: ", CC)
     # print("APL: ", APL)
 
-    runLogs(AllG, SJ, SH, IS, SS, CC, APL, pWattsStrogatz, filename='plots/ISN1000G500P0P1.png')
+    runLogs(AllG, SJ, SH, IS, SS, CC, APL, pWattsStrogatz, filename='plots/test.png')
