@@ -4,7 +4,6 @@ from os import mkdir
 from utils import *
 from mpmath import *
 
-
 class IndirectReciprocityMultiplexNetworks:
 
     def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree=2, numGenerations=100, numInteractions=1,
@@ -43,13 +42,14 @@ class IndirectReciprocityMultiplexNetworks:
 
         self.idIterator = 0
         self.idToIndex = {}  # id:index
+        self.initiateGraph()
+        self.nodePos = list(self.layer1.nodes())
         self.initiateNodes()
 
     def initiateNodes(self):
-        self.initiateGraph()
-        self.nodePos = list(self.layer1.nodes())
+        append = self.nodes.append # Faster than calling self.nodes.append every time
         for i in range(self.numNodes):
-            self.nodes.append({
+            append({
                 'pos': self.nodePos[i],  # Redundant?
                 'id': self.idIterator,
                 'payoff': 0,
@@ -61,20 +61,23 @@ class IndirectReciprocityMultiplexNetworks:
             self.idIterator += 1
 
         # Check nodes
-        # for i in range(self.numNodes):
+        #for i in range(self.numNodes):
         #   print('Node:', self.nodes[i]['id'], '| Strategy:', self.nodes[i]['strategy'])
 
         # Each node has its own perception of all others
-        # fixme - maybe change to a matrix of perceptions[i][j] instead of having a node['perception'] for each node
-        for node in self.nodes:
-            node['perception'] = [{'reputation': calculateInitialReputation(), 'id': i['id']} for i in self.nodes]
-            # Example: Node number 3's perception of node number 7
-            # print(self.nodes[3]['perception'][7]['reputation'])
+        #for node in self.nodes:
+        #    node['perception'] = [calculateInitialReputation() for i in self.nodes]
+        self.perceptions = [[calculateInitialReputation() for x in range(len(self.nodes))] for y in range(len(self.nodes))]
+        # Each node also has a random perception of himself.
+
+        # Example: Node number 3's perception of node number 7
+        # print(self.nodes[3]['perception'][7]) # old
 
     def initiateGraph(self):
         global ringAPL
         global prevProbWS
         global graph
+        global graph2
 
         if self.layer1 == 'Random':
             self.layer1 = MultiplexNetwork(self.numNodes, self.avgDegree)
@@ -82,6 +85,7 @@ class IndirectReciprocityMultiplexNetworks:
         elif self.layer1 == 'WattsStrogatz' and prevProbWS != self.prob1:
             self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree, self.prob1, self.rndSeed)
             prevProbWS = self.prob1
+            flagLayer2 = True # When layer1 changes, layer2 should change as well
             graph = self.layer1
             self.clusteringCoef1 = nx.transitivity(self.layer1)
             self.APL = nx.average_shortest_path_length(self.layer1)
@@ -93,9 +97,9 @@ class IndirectReciprocityMultiplexNetworks:
             CC.append(self.clusteringCoef1)
             APL.append(self.APL / ringAPL)
 
-
         elif self.layer1 == 'WattsStrogatz' and prevProbWS == self.prob1:
             self.layer1 = graph
+            flagLayer2 = False # If layer1 doesn't change, neither should layer2
 
         elif self.layer1 == 'BarabasiAlbert':
             self.layer1 = barabasiAlbert(self.numNodes, self.avgDegree, self.rndSeed)
@@ -116,11 +120,18 @@ class IndirectReciprocityMultiplexNetworks:
         elif self.layer2 == 'PO':
             self.layer2 = self.layer1
 
-        elif self.layer2 == 'RN':
+        elif self.layer2 == 'RN' and flagLayer2:
             self.layer2 = randomizedNeighborhoods(self.layer1, self.fractionNodes, self.numNodes, self.rndSeed)
+            graph2 = self.layer2
 
-        elif self.layer2 == 'TR':
+        elif self.layer2 == 'RN' and not flagLayer2:
+            self.layer2 = graph2
+
+        elif self.layer2 == 'TR' and flagLayer2:
             self.layer2 = totalRandomization(self.layer1, self.numNodes)
+
+        elif self.layer2 == 'TR' and not flagLayer2:
+            self.layer2 = graph2
 
         else:
             print('Wrong layer2 parameter!')
@@ -143,8 +154,8 @@ class IndirectReciprocityMultiplexNetworks:
 
                 self.socialLearning()
                 LogsPerGen.append(lg)
-                stat, numRep = stationaryFraction(self.nodes)
-                statFrac.append(stat)
+                # stat, numRep = stationaryFraction(self.nodes, self.perceptions)
+                # statFrac.append(stat)
                 # Reset payoffs after each generation
                 for node in self.nodes:
                     node['payoff'] = 0
@@ -156,14 +167,12 @@ class IndirectReciprocityMultiplexNetworks:
                 if i % self.logFreq == 0:
                     print('== Logging {} =='.format(i))
                 # drawGraph(self.layer1, self.nodes, dir, i)
-
                 LogsPerGen.append(lg)
-                stat, numRep = stationaryFraction(self.nodes)
-                statFrac.append(stat)
-
+                # stat, numRep = stationaryFraction(self.nodes, self.perceptions) # To see the evolution
+                # statFrac.append(stat)
+                # Reset payoffs after each generation
                 for node in self.nodes:
                     node['payoff'] = 0
-
         else:
             print('Wrong update method.')
             exit()
@@ -171,35 +180,36 @@ class IndirectReciprocityMultiplexNetworks:
         # self.runVisualization()
         coopRatio = calculateAverage(LogsPerGen[-100:], 'cooperationRatio') # Use last 100 generations for the average cooperation ratio
         plotValues(coopRatio, self.socialNorm)
-
-        print("Stationary fraction ( [G, B] ): ", statFrac[-1])
-        print("Number of reputations: ",
-              numRep)  # [ repAllC, repAllD, repDisc, repPDisc]; repAllC = [no. good, no. bad], AllD = ...
+        stat, numRep = stationaryFraction(self.nodes, self.perceptions)
+        print("Stationary fraction ( [G, B] ): ", statFrac)
+        print("Number of reputations: ", numRep)
+        # [ repAllC, repAllD, repDisc, repPDisc]; repAllC = [no. good, no. bad], AllD = ...
         print("CoopRatio:", coopRatio)
         print("Last gen: ", LogsPerGen[-1])
-        #print(LogsPerGen)
-        
+        # print(LogsPerGen)
+
         # If file doesn't exist, create it
         if not os.path.isfile(self.logsFileName):
             f = open(self.logsFileName, "x")
 
         f = open(self.logsFileName, "a")
         f.write("######################################")
-        f.write("\nSocial Norm: " + self.socialNorm)
-        f.write("\nProbability: " + str(self.prob1))
-        f.write("\nStationary fraction ( [G, B] ): " + str(statFrac[-1]))
-        f.write("\nNumber of reputations [repAllC, repAllD, repDisc, repPDisc]: " + str(numRep))
-        f.write("\nAverage Cooperation Ratio:" + str(coopRatio))
+        f.write(f"\nSocial Norm: {self.socialNorm}")
+        f.write(f"\nProbability: {self.prob1}")
+        f.write(f"\nStationary fraction ( [G, B] ): {statFrac}")
+        f.write(f"\nNumber of reputations [repAllC, repAllD, repDisc, repPDisc]:{numRep}")
+        f.write(f"\nAverage Cooperation Ratio:" + str(coopRatio))
         for item in LogsPerGen:
-            f.write("\n" + str(item))
+            f.write(f"\n {item}")
         f.write("\n\n")
         f.close()
 
     def runGeneration(self):
         interactionPairs = getNeighborPairs(self.layer1, self.nodes, self.nodePos, self.numInteractions)
         actions = []
+        append = actions.append
         for n, pair in enumerate(interactionPairs):
-            actions.append(self.runInteraction(pair))
+            append(self.runInteraction(pair))
             self.runGossip(pair, actions[-1])  # Update perceptions of the gossiper's neighbors in L2
 
         actionFreq = countFreq(actions)
@@ -211,8 +221,8 @@ class IndirectReciprocityMultiplexNetworks:
         donor = pair[0]
         recipient = pair[1]
         if (donor['strategy'] == 'AllC') or \
-                (donor['strategy'] == 'Disc' and getRecipientReputation(donor, recipient) == 'Good') \
-                or donor['strategy'] == 'pDisc' and getRecipientReputation(donor, recipient) == 'Bad':
+                (donor['strategy'] == 'Disc' and getRecipientReputation(donor, recipient, self.perceptions) == 'Good') \
+                or donor['strategy'] == 'pDisc' and getRecipientReputation(donor, recipient, self.perceptions) == 'Bad':
             if probability(self.executionError):
                 action = 'Defect'
             else:
@@ -233,19 +243,18 @@ class IndirectReciprocityMultiplexNetworks:
     def runGossip(self, pair, action):
         # The neighbors of the gossiper on layer 2 will update their perception of the donor
         # Choose one of the donor's neighbors who will witness and gossip about the interaction
-        gossiper = pickNeighbor(self.layer1, pair[0], self.nodes,
-                                self.nodePos)  # pick a neighbor of the donor to gossip
-        updatePerception(self.socialNorm, gossiper, pair[0], pair[1], action)  # Update that node's opinion of the donor
+        gossiper = pickNeighbor(self.layer1, pair[0], self.nodes, self.nodePos)  # Pick one of the donor's neighbors
+        updatePerception(self.socialNorm, gossiper, pair[0], pair[1], action, self.perceptions)  # Update that node's opinion of the donor
         neighbors = self.layer2.neighbors(gossiper['pos'])
         for neighbor in neighbors:
             if probability(self.transError):  # Transmission Error
-                if gossiper['perception'][pair[0]['pos']]['reputation'] == 'Good':
-                    self.nodes[neighbor]['perception'][pair[0]['pos']]['reputation'] = 'Bad'
+                if self.perceptions[gossiper['pos']][pair[0]['pos']] == 'Good':
+                    self.perceptions[neighbor][pair[0]['pos']] = 'Bad'
                 else:
-                    self.nodes[neighbor]['perception'][pair[0]['pos']]['reputation'] = 'Good'
+                    self.perceptions[neighbor][pair[0]['pos']] = 'Good'
             else:
-                self.nodes[neighbor]['perception'][pair[0]['pos']]['reputation'] = \
-                    gossiper['perception'][pair[0]['pos']]['reputation']
+                self.perceptions[neighbor][pair[0]['pos']] = self.perceptions[gossiper['pos']][pair[0]['pos']]
+
             # todo - to repeat this for the neighbors' neighbors, maybe making this function recursive
 
     def socialLearning(self):
@@ -318,12 +327,12 @@ class IndirectReciprocityMultiplexNetworks:
                     interactionPairs = getNeighborsAsynchronous(self.layer1, chosen, self.nodes, self.nodePos,
                                                                 self.numInteractions)
                     actions = []
+                    append = actions.append
                     for n, pair in enumerate(interactionPairs):
-                        actions.append(self.runInteraction(pair))
+                        append(self.runInteraction(pair))
                         self.runGossip(pair, actions[-1])  # Update perceptions of the gossiper's neighbors in L2
 
                     self.socialLearningAsynchronous(node, neighbor)
-
                     actionFreq = countFreq(actions)
                     cooperationRatio = actionFreq['Cooperate'] if 'Cooperate' in actionFreq.keys() else 0
 
@@ -343,9 +352,9 @@ if __name__ == "__main__":
         'prob1': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 1
         'prob2': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 2
         'avgDegree': 8,
-        'numGenerations': 5,
+        'numGenerations': 100,
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
-        'logFreq': 100,  # How frequently should the model take logs of the simulation (in generations)
+        'logFreq': 250,  # How frequently should the model take logs of the simulation (in generations)
         'cost': 1,  # Cost of cooperation
         'benefit': 5,  # Benefit of receiving cooperation
         'explorationRate': 0.001,  # Probability of a node adopting a random strategy during Social Learning
@@ -366,9 +375,8 @@ if __name__ == "__main__":
         'logsFileName': 'plots/logs.txt',
     }
 
-    changes = [{}] # Default for a single simulation
+    #changes = [{}] # Default for a single simulation
 
-    '''
     changes = [{'prob1': 0, 'socialNorm': 'ImageScoring', },
                {'prob1': 0.00001, 'socialNorm': 'ImageScoring', },
                {'prob1': 0.0001, 'socialNorm': 'ImageScoring', },
@@ -376,7 +384,7 @@ if __name__ == "__main__":
                {'prob1': 0.01, 'socialNorm': 'ImageScoring', },
                {'prob1': 0.1, 'socialNorm': 'ImageScoring', },
                {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]
-    '''
+
     '''
     changes = [{'prob1': 0, 'socialNorm': 'AllGood', },
                {'prob1': 0, 'socialNorm': 'SimpleStanding', },
@@ -444,3 +452,7 @@ if __name__ == "__main__":
     # print("APL: ", APL)
 
     runLogs(AllG, SJ, SH, IS, SS, CC, APL, pWattsStrogatz, filename='plots/test.png')
+
+    start_time = time.time()
+    print("--- %s seconds ---" % (time.time() - start_time))
+    exit()

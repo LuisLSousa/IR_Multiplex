@@ -1,14 +1,19 @@
 import networkx as nx
+import numpy as np
 import math
 import random
 import matplotlib.pyplot as plt
 import os.path
 from os.path import join
 from itertools import count
+import time
+import re
+from collections import Counter
 
 ringAPL = 0  # Global variable used to normalize the average path length for different values of "p-watts-strogatz"
 prevProbWS = 2  # Used to ensure the graph remains the same when testing several social norms with the same initial state (Watts-Strogatz)
 graph = None  # Used to ensure the graph remains the same when testing several social norms with the same initial state
+graph2 = None
 AllG = []
 SJ = []
 SS = []
@@ -127,8 +132,8 @@ def getNeighborsAsynchronous(G, chosen_nodes, nodeInfo, pos, numInteractions):
     return pairs
 
 
-def getRecipientReputation(donor, recipient):
-    return donor['perception'][recipient['id']]['reputation']
+def getRecipientReputation(donor, recipient, perceptions):
+    return perceptions[donor['pos']][recipient['pos']]
 
 
 def pickNeighbor(G, node, nodeInfo, pos):
@@ -136,8 +141,7 @@ def pickNeighbor(G, node, nodeInfo, pos):
     neighbors = G.neighbors(node['pos'])
     arr = []
     for neighbor in neighbors:
-        neighborIt = pos.index(neighbor)
-        arr.append(nodeInfo[neighborIt])
+        arr.append(nodeInfo[pos.index(neighbor)])
     if arr:
         chosen = random.choice(arr)
         return chosen
@@ -145,55 +149,47 @@ def pickNeighbor(G, node, nodeInfo, pos):
         return None
 
 
-def updatePerception(socialNorm, witness, donor, recipient, action):
-    # print('Before: ')
-    # print('Norm: ', socialNorm,'Donor:',witness['perception'][donor['pos']]['reputation'],'Action: ', action)
-
+def updatePerception(socialNorm, witness, donor, recipient, action, perceptions):
     # Stern Judging (Coop with Good = G; Defect with Bad = G; else B)
     if socialNorm == 'SternJudging':
-        if action == 'Cooperate' and witness['perception'][recipient['pos']]['reputation'] == 'Good':
-            witness['perception'][donor['pos']]['reputation'] = 'Good'
-        elif action == 'Defect' and witness['perception'][recipient['pos']]['reputation'] == 'Bad':
-            witness['perception'][donor['pos']]['reputation'] = 'Good'
+        if action == 'Cooperate' and perceptions[witness['pos']][recipient['pos']] == 'Good':
+            perceptions[witness['pos']][donor['pos']] = 'Good'
+        elif action == 'Defect' and perceptions[witness['pos']][recipient['pos']] == 'Bad':
+            perceptions[witness['pos']][donor['pos']] = 'Good'
         else:
-            witness['perception'][donor['pos']]['reputation'] = 'Bad'
+            perceptions[witness['pos']][donor['pos']] = 'Bad'
 
     # Simple Standing (Defect with Good = B; else G)
     elif socialNorm == 'SimpleStanding':
-        if action == 'Defect' and witness['perception'][recipient['pos']]['reputation'] == 'Good':
-            witness['perception'][donor['pos']]['reputation'] = 'Bad'
+        if action == 'Defect' and perceptions[witness['pos']][recipient['pos']] == 'Good':
+            perceptions[witness['pos']][donor['pos']] = 'Bad'
         else:
-            witness['perception'][donor['pos']]['reputation'] = 'Good'
+            perceptions[witness['pos']][donor['pos']] = 'Good'
 
     # Shunning (Coop with Good = G; else B)
     elif socialNorm == 'Shunning':
-        if action == 'Cooperate' and witness['perception'][recipient['pos']]['reputation'] == 'Good':
-            witness['perception'][donor['pos']]['reputation'] = 'Good'
+        if action == 'Cooperate' and perceptions[witness['pos']][recipient['pos']] == 'Good':
+            perceptions[witness['pos']][donor['pos']] = 'Good'
         else:
-            witness['perception'][donor['pos']]['reputation'] = 'Bad'
+            perceptions[witness['pos']][donor['pos']] = 'Bad'
 
     # Image Scoring (Coop = Good; Defect = Bad)
     elif socialNorm == 'ImageScoring':
         if action == 'Cooperate':
-            witness['perception'][donor['pos']]['reputation'] = 'Good'
+            perceptions[witness['pos']][donor['pos']] = 'Good'
         elif action == 'Defect':
-            witness['perception'][donor['pos']]['reputation'] = 'Bad'
+            perceptions[witness['pos']][donor['pos']] = 'Bad'
         else:
             print('Error: Action is neither "Cooperate" nor "Defect" ')
             exit()
 
     # All Good (All actions are deemed good - used to establish a baseline)
     elif socialNorm == 'AllGood':
-        witness['perception'][donor['pos']]['reputation'] = 'Good'
+        perceptions[witness['pos']][donor['pos']] = 'Good'
 
     else:
         print('Wrong socialNorm, check initial parameters')
         exit()
-
-    # print('After: ')
-    # print('Donor:', witness['perception'][donor['pos']]['reputation'])
-
-    # witness['perception'][donor['pos']]['reputation'] =
 
 
 def drawGraph(G, nodeInfo, directory, it):
@@ -257,7 +253,7 @@ def runLogs(AllG, SJ, SH, IS, SS, CC, APL, pWattsStrogatz, filename):
     #plt.plot(pWattsStrogatz, CC, '-Hg', label='CC')
     #plt.plot(pWattsStrogatz, APL, '-D', label='APL')
     #plt.xscale('symlog', linthreshx=0.0001)
-    plt.xscale('linear')
+    plt.xscale('log') # linear, log, symlog
     plt.xlabel("pWattsStrogatz")
     plt.ylabel("Coop Ratio")
     plt.legend()
@@ -277,19 +273,22 @@ def countFreq(arr):
     # Normalize
     for k in mp.keys():
         mp[k] = mp[k] / len(arr)
+
     return mp
 
 
-def stationaryFraction(nodes):
+def stationaryFraction(nodes, perceptions):
     good = 0
     bad = 0
     repAllC = [0, 0]  # [no. of good, no. of bad] reputations with strategy AllC
     repAllD = [0, 0]
     repDisc = [0, 0]
     repPDisc = [0, 0]
-    for i in nodes:
+    # res = dict(sum(map(Counter, perceptions), Counter())) # Count number of good and bad reputations (faster).
+
+    for i in range(len(nodes)):
         for j in range(len(nodes)):
-            if i['perception'][j]['reputation'] == 'Good':
+            if perceptions[i][j] == 'Good':
                 good += 1
                 if nodes[j]['strategy'] == 'AllC':
                     repAllC[0] += 1
@@ -313,9 +312,7 @@ def stationaryFraction(nodes):
     statGood = good / (good + bad)
     statBad = bad / (good + bad)
     numRep = [repAllC, repAllD, repDisc, repPDisc]
-
     return [statGood, statBad], numRep
-    # print(self.nodes[3]['perception'][7]['reputation'])
 
 
 def probability(chance):
