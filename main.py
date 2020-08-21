@@ -181,7 +181,7 @@ class IndirectReciprocityMultiplexNetworks:
         coopRatio = calculateAverage(LogsPerGen[-100:], 'cooperationRatio') # Use last 100 generations for the average cooperation ratio
         plotValues(coopRatio, self.socialNorm)
         stat, numRep = stationaryFraction(self.nodes, self.perceptions)
-        print("Stationary fraction ( [G, B] ): ", statFrac)
+        print("Stationary fraction ( [G, B] ): ", stat)
         print("Number of reputations: ", numRep)
         # [ repAllC, repAllD, repDisc, repPDisc]; repAllC = [no. good, no. bad], AllD = ...
         print("CoopRatio:", coopRatio)
@@ -260,17 +260,14 @@ class IndirectReciprocityMultiplexNetworks:
     def socialLearning(self):
         # social learning where nodes copy another node's strategy with a given probability if
         # that node's payoff is higher
-
         for node in self.nodes:
             # Probability of exploring a random strategy
             if probability(self.explorationRate):
                 node['strategy'] = calculateInitialStrategy()
-
             # Fitness comparison
             else:
                 neighbor = pickNeighbor(self.layer1, node, self.nodes, self.nodePos)
-
-                prob = 1 / (1 + math.exp(-self.beta * (neighbor['payoff'] - node['payoff'])))
+                prob = 1 / (1 + mp.exp(-self.beta * (neighbor['payoff'] - node['payoff'])))
                 if probability(prob):
                     node['strategy'] = neighbor['strategy']
 
@@ -351,10 +348,10 @@ if __name__ == "__main__":
         'numNodes': 500,  # Number of nodes
         'prob1': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 1
         'prob2': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 2
-        'avgDegree': 8,
-        'numGenerations': 100,
+        'avgDegree': 4,
+        'numGenerations': 500,
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
-        'logFreq': 250,  # How frequently should the model take logs of the simulation (in generations)
+        'logFreq': 250,  # How frequently should the model take logs of the simulation (in generations) (unused)
         'cost': 1,  # Cost of cooperation
         'benefit': 5,  # Benefit of receiving cooperation
         'explorationRate': 0.001,  # Probability of a node adopting a random strategy during Social Learning
@@ -377,15 +374,6 @@ if __name__ == "__main__":
 
     #changes = [{}] # Default for a single simulation
 
-    changes = [{'prob1': 0, 'socialNorm': 'ImageScoring', },
-               {'prob1': 0.00001, 'socialNorm': 'ImageScoring', },
-               {'prob1': 0.0001, 'socialNorm': 'ImageScoring', },
-               {'prob1': 0.001, 'socialNorm': 'ImageScoring', },
-               {'prob1': 0.01, 'socialNorm': 'ImageScoring', },
-               {'prob1': 0.1, 'socialNorm': 'ImageScoring', },
-               {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]
-
-    '''
     changes = [{'prob1': 0, 'socialNorm': 'AllGood', },
                {'prob1': 0, 'socialNorm': 'SimpleStanding', },
                {'prob1': 0, 'socialNorm': 'SternJudging', },
@@ -427,7 +415,6 @@ if __name__ == "__main__":
                {'prob1': 1, 'socialNorm': 'SternJudging', },
                {'prob1': 1, 'socialNorm': 'Shunning', },
                {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]
-    '''
 
     for j, c in enumerate(changes):
         config = initialValues.copy()
