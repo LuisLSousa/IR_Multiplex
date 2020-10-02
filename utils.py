@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import os.path
 from os.path import join
 from itertools import count
+import copy
 import time
 import re
 from collections import Counter
@@ -22,6 +23,7 @@ IS = []
 CC = []
 APL = []
 pWattsStrogatz = []
+explorationRate = []
 
 class MultiplexNetwork(nx.Graph):
     # Generate a random graph with a given average degree and size.
@@ -48,15 +50,19 @@ def barabasiAlbert(numNodes, avgDegree, rndSeed=None):
     return G
 
 
-def randomizedNeighborhoods(layer1, fractionNodes, numNodes, rndSeed=None):
-    G = layer1
-    nx.double_edge_swap(G, nswap=fractionNodes * numNodes, max_tries=numNodes * numNodes, seed=rndSeed)
-
+def completeGraph(numNodes):
+    G = nx.complete_graph(numNodes)
     return G
 
 
+def randomizedNeighborhoods(layer1, numSwap, numNodes, rndSeed=None):
+    G = copy.deepcopy(layer1)
+    Gf = nx.double_edge_swap(G, nswap=numSwap, max_tries=numNodes * numNodes, seed=rndSeed)
+    return Gf
+
+
 def totalRandomization(layer1, numNodes):
-    G = layer1
+    G = copy.deepcopy(layer1)
     nodes = list(G)
     random.shuffle(nodes)
     mapping = {}
@@ -116,22 +122,26 @@ def getNeighborsAsynchronous(G, chosen_nodes, nodeInfo, pos, numInteractions):
     # The index of each node in nodeInfo corresponds to the node with the same index in G.nodes
     # Get all neighbors of both nodes (donor and recipient)
     pairs = []
+    done = []  # to make sure each link A-B or B-A is only used once
     for node in chosen_nodes:
         neighbors = G.neighbors(node['pos'])
         for n in neighbors:
             neighborIt = pos.index(n)
-            for i in range(numInteractions):
-                # 50/50 chance of playing as a donor or a recipient
-                if probability(0.5):
-                    pairs.append([node, nodeInfo[neighborIt]])
-                else:
-                    pairs.append([nodeInfo[neighborIt], node])
+            if neighborIt not in done: # make sure nodes don't play more than numInteractions times
+                for i in range(numInteractions):
+                    # 50/50 chance of playing as a donor or a recipient
+                    if probability(0.5):
+                        pairs.append([node, nodeInfo[neighborIt]])
+                    else:
+                        pairs.append([nodeInfo[neighborIt], node])
 
-    # random.shuffle(pairs)  # fixme - This may be unnecessary
+        done.append(node['pos'])
+
+    # random.shuffle(pairs)  # This may be unnecessary
 
     return pairs
 
-
+# Maybe remove this function and just write the code
 def getRecipientReputation(donor, recipient, perceptions):
     return perceptions[donor['pos']][recipient['pos']]
 
@@ -238,23 +248,23 @@ def plotValues(coopRatio, socialNorm):
         exit()
 
 
-def runLogs(AllG, SJ, SH, IS, SS, CC, APL, pWattsStrogatz, filename):
+def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
     if SJ:
-        plt.plot(pWattsStrogatz, SJ, '^-r', label='SJ')
+        plt.plot(x_axis, SJ, '^-r', label='SJ')
     if SH:
-        plt.plot(pWattsStrogatz, SH, '-py', label='SH')
+        plt.plot(x_axis, SH, '-py', label='SH')
     if AllG:
-        plt.plot(pWattsStrogatz, AllG, '-sb', label='AllG')
+        plt.plot(x_axis, AllG, '-sb', label='AllG')
     if SS:
-        plt.plot(pWattsStrogatz, SS, '<-g', label='SS')
+        plt.plot(x_axis, SS, '<-g', label='SS')
     if IS:
-        plt.plot(pWattsStrogatz, IS, '-or', label='IS')
+        plt.plot(x_axis, IS, '-or', label='IS')
 
-    #plt.plot(pWattsStrogatz, CC, '-Hg', label='CC')
-    #plt.plot(pWattsStrogatz, APL, '-D', label='APL')
-    #plt.xscale('symlog', linthreshx=0.0001)
-    plt.xscale('log') # linear, log, symlog
-    plt.xlabel("pWattsStrogatz")
+    #plt.plot(x_axis, CC, '-Hg', label='CC')
+    #plt.plot(x_axis, APL, '-D', label='APL')
+    plt.xscale('symlog', linthreshx=0.0001) # Use a linthreshx equal to the lowest probability after 0
+    #plt.xscale('log') # linear, log, symlog
+    plt.xlabel(x_label)
     plt.ylabel("Coop Ratio")
     plt.legend()
     plt.savefig(filename)
@@ -298,6 +308,9 @@ def stationaryFraction(nodes, perceptions):
                     repDisc[0] += 1
                 elif nodes[j]['strategy'] == 'pDisc':
                     repPDisc[0] += 1
+                else:
+                    print("Wrong strategy!")
+                    exit()
             else:
                 bad += 1
                 if nodes[j]['strategy'] == 'AllC':
@@ -308,6 +321,9 @@ def stationaryFraction(nodes, perceptions):
                     repDisc[1] += 1
                 elif nodes[j]['strategy'] == 'pDisc':
                     repPDisc[1] += 1
+                else:
+                    print("Wrong strategy!")
+                    exit()
 
     statGood = good / (good + bad)
     statBad = bad / (good + bad)
@@ -316,7 +332,7 @@ def stationaryFraction(nodes, perceptions):
 
 
 def probability(chance):
-    return random.random() <= chance
+    return random.random() < chance
 
 
 def calculateAverage(arr, variable):
