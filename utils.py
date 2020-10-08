@@ -12,7 +12,6 @@ import re
 from collections import Counter
 
 ringAPL = 0  # Global variable used to normalize the average path length for different values of "p-watts-strogatz"
-prevProbWS = 2  # Used to ensure the graph remains the same when testing several social norms with the same initial state (Watts-Strogatz)
 graph = None  # Used to ensure the graph remains the same when testing several social norms with the same initial state
 graph2 = None
 AllG = []
@@ -22,8 +21,7 @@ SH = []
 IS = []
 CC = []
 APL = []
-pWattsStrogatz = []
-explorationRate = []
+x_axis = [] # The variable that will be used in the plot. Can be pWattsStrogatz, avgDegree or explorationRate
 
 class MultiplexNetwork(nx.Graph):
     # Generate a random graph with a given average degree and size.

@@ -9,7 +9,7 @@ class IndirectReciprocityMultiplexNetworks:
     def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree1=4, avgDegree2=4, numGenerations=100, numInteractions=1,
                  logFreq=1, cost=0.1, benefit=1, transError=0.01, executionError=0.01, beta=10, update='Synchronous', explorationRate=0.001,
                  rndSeed=None, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm='SternJudging',
-                 numSwap=1000, logsFileName='logs'):
+                 numSwap=1000, logsFileName='logs', typeOfSimulation=None):
 
         self.numNodes = numNodes  # Number of nodes
         self.nodes = []
@@ -36,14 +36,30 @@ class IndirectReciprocityMultiplexNetworks:
         self.clusteringCoef1 = 0
         self.APL = 0
         self.logsFileName = logsFileName
+        self.typeOfSim = typeOfSimulation
+
+        if self.typeOfSim == 'pWattsStrogatz':
+            self.x_var = self.prob1
+        elif self.typeOfSim == 'explorationRate':
+            self.x_var = self.explorationRate
+        elif self.typeOfSim == 'avgDegree1':
+            self.x_var = self.avgDegree1
+        elif self.typeOfSim == 'avgDegree2':
+            self.x_var = self.avgDegree2
+        elif not self.typeOfSim:
+            self.x_var = None
+        else:
+            print('Wrong typeOfSimulation!')
+            exit()
+
 
         if self.numInteractions <= 0:
-            print("numInteractions must be > 0")
+            print('numInteractions must be > 0')
             exit()
 
         if self.explorationRate == 1:
-            print("For explorationRate = 1, nodes always adopt a random strategy, and the donation game is never played. \
-            Hence, there will be no cooperation and coopRatio = 0")
+            print('For explorationRate = 1, nodes always adopt a random strategy, and the donation game is never played. \
+            Hence, there will be no cooperation and coopRatio = 0')
 
         self.idIterator = 0
         self.idToIndex = {}  # id:index
@@ -80,18 +96,19 @@ class IndirectReciprocityMultiplexNetworks:
 
     def initiateGraph(self):
         global ringAPL
-        global prevProbWS
         global graph
         global graph2
-        global explorationRate
+        global x_axis
         flagLayer2 = False
 
         if self.layer1 == 'Random':
             self.layer1 = MultiplexNetwork(self.numNodes, self.avgDegree1)
 
-        elif self.layer1 == 'WattsStrogatz' and prevProbWS != self.prob1:
+        elif self.layer1 == 'WattsStrogatz' and not self.typeOfSim: # If it's just one simulation without a plot
             self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
-            prevProbWS = self.prob1
+
+        elif self.layer1 == 'WattsStrogatz' and self.x_var not in x_axis and self.typeOfSim != 'avgDegree2': # if the simulation is not in function of the avgDegree2
+            self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
             flagLayer2 = True # When layer1 changes, layer2 should change as well
             graph = self.layer1
             self.clusteringCoef1 = nx.transitivity(self.layer1)
@@ -100,20 +117,25 @@ class IndirectReciprocityMultiplexNetworks:
             if self.prob1 == 0:  # Used to normalize the APL for different values of "p-watts-strogatz"
                 ringAPL = self.APL
 
-            pWattsStrogatz.append(self.prob1)
+            #pWattsStrogatz.append(self.prob1)
+            x_axis.append(self.x_var)
             CC.append(self.clusteringCoef1)
             APL.append(self.APL / ringAPL)
 
-        elif self.layer1 == 'WattsStrogatz' and prevProbWS == self.prob1:
+        elif self.layer1 == 'WattsStrogatz' and self.x_var in x_axis: # if the graph for the current simulation has already been generated (e.g., when testing different norms with the same graph)
             self.layer1 = graph
             flagLayer2 = False # If layer1 doesn't change, neither should layer2
+
+        elif self.layer1 == 'WattsStrogatz' and self.typeOfSim == 'avgDegree2':
+            self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
+            graph = self.layer1
 
         elif self.layer1 == 'BarabasiAlbert':
             self.layer1 = barabasiAlbert(self.numNodes, self.avgDegree1, self.rndSeed)
 
         elif self.layer1 == 'Complete':
-            if self.explorationRate not in explorationRate:
-                explorationRate.append(self.explorationRate)
+            if self.x_var not in x_axis:
+                x_axis.append(self.x_var)
                 self.layer1 = completeGraph(self.numNodes)
                 graph = self.layer1
             else:
@@ -127,15 +149,19 @@ class IndirectReciprocityMultiplexNetworks:
         if self.layer2 == 'Random':
             self.layer2 = MultiplexNetwork(self.numNodes, self.avgDegree2)
 
-        elif self.layer2 == 'WattsStrogatz':
+        elif self.layer2 == 'WattsStrogatz' and self.x_var not in x_axis: # this is only true when the simulation is in function of avgDegree2 and a new value is tested
             self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree2, self.prob2, self.rndSeed)
+            graph2 = self.layer2
+            x_axis.append(self.x_var)
+
+        elif self.layer2 == 'WattsStrogatz' and self.x_var in x_axis:
+            self.layer2 = graph2
 
         elif self.layer2 == 'BarabasiAlbert':
             self.layer2 = barabasiAlbert(self.numNodes, self.avgDegree2, self.rndSeed)
 
         elif self.layer2 == 'PO':
             self.layer2 = copy.deepcopy(self.layer1)
-            #self.layer2 = self.layer1
 
         elif self.layer2 == 'RN' and flagLayer2:
             self.layer2 = randomizedNeighborhoods(self.layer1, self.numSwap, self.numNodes, self.rndSeed)
@@ -215,7 +241,7 @@ class IndirectReciprocityMultiplexNetworks:
         f = open(self.logsFileName, "a")
         f.write("######################################")
         f.write(f"\nSocial Norm: {self.socialNorm}")
-        f.write(f"\nProbability: {self.prob1}")
+        f.write(f"\n{self.typeOfSim}: {self.x_var}")
         f.write(f"\nStationary fraction ( [G, B] ): {statFrac}")
         f.write(f"\nNumber of reputations [repAllC, repAllD, repDisc, repPDisc]:{numRep}")
         f.write(f"\nAverage Cooperation Ratio: " + str(coopRatio))
@@ -372,12 +398,12 @@ if __name__ == "__main__":
     # Variables used
     start_time = time.time()
     initialValues = {
-        'numNodes': 50,  # Number of nodes
+        'numNodes': 40,  # Number of nodes
         'prob1': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 1
         'prob2': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 2
         'avgDegree1': 8, # Layer 1
         'avgDegree2': 8, # Layer 2
-        'numGenerations': 500,
+        'numGenerations': 300,
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
         'logFreq': 250,  # How frequently should the model take logs of the simulation (in generations) (unused)
         'cost': 1,  # Cost of cooperation
@@ -398,6 +424,7 @@ if __name__ == "__main__":
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': 'Shunning',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
         'logsFileName': 'plots/logs.txt',
+        'typeOfSimulation': 'explorationRate' # 'pWattsStrogatz', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
     }
 
     #changes = [{}] # Default for a single simulation
@@ -413,12 +440,6 @@ if __name__ == "__main__":
                {'explorationRate': 0.01, 'socialNorm': 'SimpleStanding', },
                {'explorationRate': 0.01, 'socialNorm': 'AllGood', },
 
-               {'explorationRate': 0.025, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.025, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.025, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.025, 'socialNorm': 'SimpleStanding', },
-               {'explorationRate': 0.025, 'socialNorm': 'AllGood', },
-
                {'explorationRate': 0.05, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.05, 'socialNorm': 'Shunning', },
                {'explorationRate': 0.05, 'socialNorm': 'ImageScoring', },
@@ -430,12 +451,6 @@ if __name__ == "__main__":
                {'explorationRate': 0.1, 'socialNorm': 'ImageScoring', },
                {'explorationRate': 0.1, 'socialNorm': 'SimpleStanding', },
                {'explorationRate': 0.1, 'socialNorm': 'AllGood', },
-
-               {'explorationRate': 0.25, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.25, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.25, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.25, 'socialNorm': 'SimpleStanding', },
-               {'explorationRate': 0.25, 'socialNorm': 'AllGood', },
 
                {'explorationRate': 0.5, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.5, 'socialNorm': 'Shunning', },
@@ -520,7 +535,8 @@ if __name__ == "__main__":
     with open(join(dir, 'config.json'), 'w') as fp:
         json.dump(log, fp)
 
-    runLogs(AllG, SJ, SH, IS, SS, CC, APL, explorationRate, "explorationRate", filename='plots/ScReport.png') # Insert here the x_axis and x_label
+    if initialValues['typeOfSimulation']: # if typeOfSimulation is None, there will be no plot
+        runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, initialValues['typeOfSimulation'], filename='plots/ScReport.png') # Insert here the x_axis and x_label
 
     #start_time = time.time()
     #print("--- %s seconds ---" % (time.time() - start_time))
