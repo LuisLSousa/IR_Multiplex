@@ -257,10 +257,12 @@ def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
         plt.plot(x_axis, SS, '<-g', label='SS')
     if IS:
         plt.plot(x_axis, IS, '-or', label='IS')
-
     #plt.plot(x_axis, CC, '-Hg', label='CC')
     #plt.plot(x_axis, APL, '-D', label='APL')
-    plt.xscale('symlog', linthreshx=0.0001) # Use a linthreshx equal to the lowest probability after 0
+    if x_label == 'avgDegree' or x_label == 'avgDegree2':
+        plt.xscale('linear')
+    else:
+        plt.xscale('symlog', linthreshx=0.0001) # Use a linthreshx equal to the lowest probability after 0
     #plt.xscale('log') # linear, log, symlog
     plt.xlabel(x_label)
     plt.ylabel("Coop Ratio")

@@ -9,7 +9,7 @@ class IndirectReciprocityMultiplexNetworks:
     def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree1=4, avgDegree2=4, numGenerations=100, numInteractions=1,
                  logFreq=1, cost=0.1, benefit=1, transError=0.01, executionError=0.01, beta=10, update='Synchronous', explorationRate=0.001,
                  rndSeed=None, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm='SternJudging',
-                 numSwap=1000, logsFileName='logs', typeOfSimulation=None):
+                 numSwap=1000, logsFileName='logs', typeOfSimulation=None, outputDirectory=None):
 
         self.numNodes = numNodes  # Number of nodes
         self.nodes = []
@@ -218,6 +218,8 @@ class IndirectReciprocityMultiplexNetworks:
                 # Reset payoffs after each generation
                 for node in self.nodes:
                     node['payoff'] = 0
+                #self.nodes['payoff'] = [0 for node in self.nodes]
+                # Todo - test me (and do the same for synchronous)
         else:
             print('Wrong update method.')
             exit()
@@ -398,19 +400,19 @@ if __name__ == "__main__":
     # Variables used
     start_time = time.time()
     initialValues = {
-        'numNodes': 40,  # Number of nodes
-        'prob1': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 1
-        'prob2': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 2
-        'avgDegree1': 8, # Layer 1
+        'numNodes': 50,  # Number of nodes
+        'prob1': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 1
+        'prob2': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 2
+        'avgDegree1': 4, # Layer 1
         'avgDegree2': 8, # Layer 2
-        'numGenerations': 300,
+        'numGenerations': 100,
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
         'logFreq': 250,  # How frequently should the model take logs of the simulation (in generations) (unused)
         'cost': 1,  # Cost of cooperation
         'benefit': 5,  # Benefit of receiving cooperation
         'explorationRate': 0.001,  # Probability of a node adopting a random strategy during Social Learning
-        'transError': 0.0, # Probability of a node gossiping wrong information
-        'executionError': 0.0, # Probability of a donor attempting to cooperate failing to do so
+        'transError': 0.0, # Probability of a node gossiping wrong information (0.01)
+        'executionError': 0.0, # Probability of a donor attempting to cooperate failing to do so (0.01)
         # Transmission error, in which case an individual gossips wrong information (contrary to his beliefs)
         'beta': 1,  # Pairwise comparison function: p = 1 / (1 + math.exp(-beta * (Fb - Fa)))
         'rndSeed': None,  # Indicator of random number generation state
@@ -424,10 +426,35 @@ if __name__ == "__main__":
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': 'Shunning',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
         'logsFileName': 'plots/logs.txt',
-        'typeOfSimulation': 'explorationRate' # 'pWattsStrogatz', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
+        'typeOfSimulation': 'explorationRate', # 'pWattsStrogatz', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
+        'outputDirectory': 'test', # Name of the output directory
     }
 
     #changes = [{}] # Default for a single simulation
+    '''changes = [{'avgDegree2': 2, 'socialNorm': 'SternJudging', },
+               {'avgDegree2': 2, 'socialNorm': 'Shunning', },
+               {'avgDegree2': 2, 'socialNorm': 'ImageScoring', },
+               {'avgDegree2': 2, 'socialNorm': 'SimpleStanding', },
+               {'avgDegree2': 2, 'socialNorm': 'AllGood', },
+
+               {'avgDegree2': 4, 'socialNorm': 'SternJudging', },
+               {'avgDegree2': 4, 'socialNorm': 'Shunning', },
+               {'avgDegree2': 4, 'socialNorm': 'ImageScoring', },
+               {'avgDegree2': 4, 'socialNorm': 'SimpleStanding', },
+               {'avgDegree2': 4, 'socialNorm': 'AllGood', },
+
+               {'avgDegree2': 6, 'socialNorm': 'SternJudging', },
+               {'avgDegree2': 6, 'socialNorm': 'Shunning', },
+               {'avgDegree2': 6, 'socialNorm': 'ImageScoring', },
+               {'avgDegree2': 6, 'socialNorm': 'SimpleStanding', },
+               {'avgDegree2': 6, 'socialNorm': 'AllGood', },
+
+               {'avgDegree2': 8, 'socialNorm': 'SternJudging', },
+               {'avgDegree2': 8, 'socialNorm': 'Shunning', },
+               {'avgDegree2': 8, 'socialNorm': 'ImageScoring', },
+               {'avgDegree2': 8, 'socialNorm': 'SimpleStanding', },
+               {'avgDegree2': 8, 'socialNorm': 'AllGood', }, ]'''
+
     changes = [{'explorationRate': 0.001, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.001, 'socialNorm': 'Shunning', },
                {'explorationRate': 0.001, 'socialNorm': 'ImageScoring', },
@@ -440,23 +467,11 @@ if __name__ == "__main__":
                {'explorationRate': 0.01, 'socialNorm': 'SimpleStanding', },
                {'explorationRate': 0.01, 'socialNorm': 'AllGood', },
 
-               {'explorationRate': 0.05, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.05, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.05, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.05, 'socialNorm': 'SimpleStanding', },
-               {'explorationRate': 0.05, 'socialNorm': 'AllGood', },
-
                {'explorationRate': 0.1, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.1, 'socialNorm': 'Shunning', },
                {'explorationRate': 0.1, 'socialNorm': 'ImageScoring', },
                {'explorationRate': 0.1, 'socialNorm': 'SimpleStanding', },
                {'explorationRate': 0.1, 'socialNorm': 'AllGood', },
-
-               {'explorationRate': 0.5, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.5, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.5, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.5, 'socialNorm': 'SimpleStanding', },
-               {'explorationRate': 0.5, 'socialNorm': 'AllGood', },
 
                {'explorationRate': 0.9, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.9, 'socialNorm': 'Shunning', },
@@ -529,14 +544,22 @@ if __name__ == "__main__":
     config = initialValues.copy()
     ch = changes.copy()
     log = [config, ch] # one directory with the initial values and all changes
-    dir = join('output', 'ScReport')
+    if initialValues['outputDirectory']:  # if outputDirectory is None, directory will be called 'test'
+        dir = join('output', initialValues['outputDirectory'])
+    else:
+        dir = join('output', 'test')
+
     if not os.path.exists(dir):
         mkdir(dir)
+
+    # todo: while os.path.exists(dir): add _x to dir (x is an int)
+
     with open(join(dir, 'config.json'), 'w') as fp:
         json.dump(log, fp)
 
     if initialValues['typeOfSimulation']: # if typeOfSimulation is None, there will be no plot
-        runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, initialValues['typeOfSimulation'], filename='plots/ScReport.png') # Insert here the x_axis and x_label
+        filename = 'plots/' + initialValues['typeOfSimulation'] + '.png'
+        runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, initialValues['typeOfSimulation'], filename=filename) # Insert here the x_axis and x_label
 
     #start_time = time.time()
     #print("--- %s seconds ---" % (time.time() - start_time))
