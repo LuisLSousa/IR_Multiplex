@@ -35,7 +35,7 @@ class IndirectReciprocityMultiplexNetworks:
         self.numSwap = numSwap
         self.clusteringCoef1 = 0
         self.APL = 0
-        self.logsFileName = logsFileName
+        self.logsFileName = 'output/' + outputDirectory + '/' + logsFileName
         self.typeOfSim = typeOfSimulation
 
         if self.typeOfSim == 'pWattsStrogatz':
@@ -140,7 +140,6 @@ class IndirectReciprocityMultiplexNetworks:
                 graph = self.layer1
             else:
                 self.layer1 = graph # faster than generating a new graph each time
-
 
         else:
             print('Wrong layer1 parameter!')
@@ -405,7 +404,7 @@ if __name__ == "__main__":
         'prob2': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 2
         'avgDegree1': 4, # Layer 1
         'avgDegree2': 8, # Layer 2
-        'numGenerations': 100,
+        'numGenerations': 500,
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
         'logFreq': 250,  # How frequently should the model take logs of the simulation (in generations) (unused)
         'cost': 1,  # Cost of cooperation
@@ -425,9 +424,9 @@ if __name__ == "__main__":
         'numSwap': 4000,  # Number of edges swapped for Randomized Neighborhoods
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': 'Shunning',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
-        'logsFileName': 'plots/logs.txt',
+        'logsFileName': 'logs.txt',
         'typeOfSimulation': 'explorationRate', # 'pWattsStrogatz', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
-        'outputDirectory': 'test', # Name of the output directory
+        'outputDirectory': 'explorationRate', # Name of the output directory
     }
 
     #changes = [{}] # Default for a single simulation
@@ -455,29 +454,51 @@ if __name__ == "__main__":
                {'avgDegree2': 8, 'socialNorm': 'SimpleStanding', },
                {'avgDegree2': 8, 'socialNorm': 'AllGood', }, ]'''
 
-    changes = [{'explorationRate': 0.001, 'socialNorm': 'SternJudging', },
+    '''{'explorationRate': 0.001, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.001, 'socialNorm': 'Shunning', },
                {'explorationRate': 0.001, 'socialNorm': 'ImageScoring', },
                {'explorationRate': 0.001, 'socialNorm': 'SimpleStanding', },
-               {'explorationRate': 0.001, 'socialNorm': 'AllGood', },
+               
+               {'explorationRate': 0.0050, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.0050, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.0050, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.0050, 'socialNorm': 'SimpleStanding', },'''
 
-               {'explorationRate': 0.01, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.01, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.01, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.01, 'socialNorm': 'SimpleStanding', },
-               {'explorationRate': 0.01, 'socialNorm': 'AllGood', },
+    changes = [{'explorationRate': 0.05, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.05, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.05, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.05, 'socialNorm': 'SimpleStanding', },
+
+               {'explorationRate': 0.08, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.08, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.08, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.08, 'socialNorm': 'SimpleStanding', },
 
                {'explorationRate': 0.1, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.1, 'socialNorm': 'Shunning', },
                {'explorationRate': 0.1, 'socialNorm': 'ImageScoring', },
                {'explorationRate': 0.1, 'socialNorm': 'SimpleStanding', },
-               {'explorationRate': 0.1, 'socialNorm': 'AllGood', },
+
+               {'explorationRate': 0.30, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.30, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.30, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.30, 'socialNorm': 'SimpleStanding', },
+
+               {'explorationRate': 0.5, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.5, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.5, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.5, 'socialNorm': 'SimpleStanding', },
+
+               {'explorationRate': 0.7, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.7, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.7, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.7, 'socialNorm': 'SimpleStanding', },
 
                {'explorationRate': 0.9, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.9, 'socialNorm': 'Shunning', },
                {'explorationRate': 0.9, 'socialNorm': 'ImageScoring', },
                {'explorationRate': 0.9, 'socialNorm': 'SimpleStanding', },
-               {'explorationRate': 0.9, 'socialNorm': 'AllGood', },]
+               ]
 
     '''changes = [{'prob1': 0, 'socialNorm': 'AllGood', },
                {'prob1': 0, 'socialNorm': 'SimpleStanding', },
@@ -558,7 +579,13 @@ if __name__ == "__main__":
         json.dump(log, fp)
 
     if initialValues['typeOfSimulation']: # if typeOfSimulation is None, there will be no plot
-        filename = 'plots/' + initialValues['typeOfSimulation'] + '.png'
+        filename = 'output/' + initialValues['outputDirectory'] + '/' + initialValues['typeOfSimulation'] + '.png'
+        i = 0
+        while os.path.isfile(filename):
+            i += 1
+            filename = 'output/' + initialValues['outputDirectory'] + '/' + initialValues['typeOfSimulation'] + '_{}'.format(i) + '.png'
+
+
         runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, initialValues['typeOfSimulation'], filename=filename) # Insert here the x_axis and x_label
 
     #start_time = time.time()
