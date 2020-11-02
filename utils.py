@@ -2,7 +2,7 @@ import networkx as nx
 import numpy as np
 import math
 import random
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import os.path
 from os.path import join
 from itertools import count
@@ -139,11 +139,6 @@ def getNeighborsAsynchronous(G, chosen_nodes, nodeInfo, pos, numInteractions):
 
     return pairs
 
-# Maybe remove this function and just write the code
-def getRecipientReputation(donor, recipient, perceptions):
-    return perceptions[donor['pos']][recipient['pos']]
-
-
 def pickNeighbor(G, node, nodeInfo, pos):
     # Pick a neighbor
     neighbors = G.neighbors(node['pos'])
@@ -157,50 +152,7 @@ def pickNeighbor(G, node, nodeInfo, pos):
         return None
 
 
-def updatePerception(socialNorm, witness, donor, recipient, action, perceptions):
-    # Stern Judging (Coop with Good = G; Defect with Bad = G; else B)
-    if socialNorm == 'SternJudging':
-        if action == 'Cooperate' and perceptions[witness['pos']][recipient['pos']] == 'Good':
-            perceptions[witness['pos']][donor['pos']] = 'Good'
-        elif action == 'Defect' and perceptions[witness['pos']][recipient['pos']] == 'Bad':
-            perceptions[witness['pos']][donor['pos']] = 'Good'
-        else:
-            perceptions[witness['pos']][donor['pos']] = 'Bad'
-
-    # Simple Standing (Defect with Good = B; else G)
-    elif socialNorm == 'SimpleStanding':
-        if action == 'Defect' and perceptions[witness['pos']][recipient['pos']] == 'Good':
-            perceptions[witness['pos']][donor['pos']] = 'Bad'
-        else:
-            perceptions[witness['pos']][donor['pos']] = 'Good'
-
-    # Shunning (Coop with Good = G; else B)
-    elif socialNorm == 'Shunning':
-        if action == 'Cooperate' and perceptions[witness['pos']][recipient['pos']] == 'Good':
-            perceptions[witness['pos']][donor['pos']] = 'Good'
-        else:
-            perceptions[witness['pos']][donor['pos']] = 'Bad'
-
-    # Image Scoring (Coop = Good; Defect = Bad)
-    elif socialNorm == 'ImageScoring':
-        if action == 'Cooperate':
-            perceptions[witness['pos']][donor['pos']] = 'Good'
-        elif action == 'Defect':
-            perceptions[witness['pos']][donor['pos']] = 'Bad'
-        else:
-            print('Error: Action is neither "Cooperate" nor "Defect" ')
-            exit()
-
-    # All Good (All actions are deemed good - used to establish a baseline)
-    elif socialNorm == 'AllGood':
-        perceptions[witness['pos']][donor['pos']] = 'Good'
-
-    else:
-        print('Wrong socialNorm, check initial parameters')
-        exit()
-
-
-def drawGraph(G, nodeInfo, directory, it):
+'''def drawGraph(G, nodeInfo, directory, it):
     # Group nodes according to their strategy
     arr = ['AllC', 'AllD', 'Disc', 'pDisc']
     groups = set(arr)
@@ -220,7 +172,7 @@ def drawGraph(G, nodeInfo, directory, it):
     # fixme - when there is only one strategy remaining, it defaults to green
     plt.axis('off')
     plt.savefig(join(directory, 'graph{}.png'.format(it)))
-    plt.close()
+    plt.close()'''
 
 
 def plotValues(coopRatio, socialNorm):
@@ -245,7 +197,7 @@ def plotValues(coopRatio, socialNorm):
         print("Error, wrong social norm name!")
         exit()
 
-
+'''
 def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
     if SJ:
         plt.plot(x_axis, SJ, '^-r', label='SJ')
@@ -269,6 +221,7 @@ def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
     plt.legend()
     plt.savefig(filename)
     plt.show()
+'''
 
 
 def countFreq(arr):

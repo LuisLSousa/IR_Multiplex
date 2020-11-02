@@ -1,13 +1,17 @@
+#! python3
 import json
 import os
 from os import mkdir
 from utils import *
 from mpmath import *
 
+
 class IndirectReciprocityMultiplexNetworks:
 
-    def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree1=4, avgDegree2=4, numGenerations=100, numInteractions=1,
-                 logFreq=1, cost=0.1, benefit=1, transError=0.01, executionError=0.01, beta=10, update='Synchronous', explorationRate=0.001,
+    def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree1=4, avgDegree2=4, numGenerations=100,
+                 numInteractions=1,
+                 logFreq=1, cost=0.1, benefit=1, transError=0.01, executionError=0.01, assessmentError=0.01,
+                 assignmentError=0.01, beta=10, update='Synchronous', explorationRate=0.001,
                  rndSeed=None, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm='SternJudging',
                  numSwap=1000, logsFileName='logs', typeOfSimulation=None, outputDirectory=None):
 
@@ -27,6 +31,8 @@ class IndirectReciprocityMultiplexNetworks:
         self.transError = transError
         self.explorationRate = explorationRate
         self.executionError = executionError
+        self.assessmentError = assessmentError
+        self.assignmentError = assignmentError
         self.socialNorm = socialNorm  # Global social norm (the entire population follows this)
         self.gephi = gephiFileName  # File name for the gephi export
         self.layer1 = layer1  # Layer1 topology
@@ -52,7 +58,6 @@ class IndirectReciprocityMultiplexNetworks:
             print('Wrong typeOfSimulation!')
             exit()
 
-
         if self.numInteractions <= 0:
             print('numInteractions must be > 0')
             exit()
@@ -68,7 +73,7 @@ class IndirectReciprocityMultiplexNetworks:
         self.initiateNodes()
 
     def initiateNodes(self):
-        append = self.nodes.append # Faster than calling self.nodes.append every time
+        append = self.nodes.append  # Faster than calling self.nodes.append every time
         for i in range(self.numNodes):
             append({
                 'pos': self.nodePos[i],  # Redundant?
@@ -82,13 +87,14 @@ class IndirectReciprocityMultiplexNetworks:
             self.idIterator += 1
 
         # Check nodes
-        #for i in range(self.numNodes):
+        # for i in range(self.numNodes):
         #   print('Node:', self.nodes[i]['id'], '| Strategy:', self.nodes[i]['strategy'])
 
         # Each node has its own perception of all others
-        #for node in self.nodes:
+        # for node in self.nodes:
         #    node['perception'] = [calculateInitialReputation() for i in self.nodes]
-        self.perceptions = [[calculateInitialReputation() for x in range(len(self.nodes))] for y in range(len(self.nodes))]
+        self.perceptions = [[calculateInitialReputation() for x in range(len(self.nodes))] for y in
+                            range(len(self.nodes))]
 
         # Each node also has a random perception of himself.
         # Example: Node number 3's perception of node number 7
@@ -104,12 +110,12 @@ class IndirectReciprocityMultiplexNetworks:
         if self.layer1 == 'Random':
             self.layer1 = MultiplexNetwork(self.numNodes, self.avgDegree1)
 
-        elif self.layer1 == 'WattsStrogatz' and not self.typeOfSim: # If it's just one simulation without a plot
+        elif self.layer1 == 'WattsStrogatz' and not self.typeOfSim:  # If it's just one simulation without a plot
             self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
 
-        elif self.layer1 == 'WattsStrogatz' and self.x_var not in x_axis and self.typeOfSim != 'avgDegree2': # if the simulation is not in function of the avgDegree2
+        elif self.layer1 == 'WattsStrogatz' and self.x_var not in x_axis and self.typeOfSim != 'avgDegree2':  # if the simulation is not in function of the avgDegree2
             self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
-            flagLayer2 = True # When layer1 changes, layer2 should change as well
+            flagLayer2 = True  # When layer1 changes, layer2 should change as well
             graph = self.layer1
             self.clusteringCoef1 = nx.transitivity(self.layer1)
             self.APL = nx.average_shortest_path_length(self.layer1)
@@ -117,14 +123,14 @@ class IndirectReciprocityMultiplexNetworks:
             if self.prob1 == 0:  # Used to normalize the APL for different values of "p-watts-strogatz"
                 ringAPL = self.APL
 
-            #pWattsStrogatz.append(self.prob1)
+            # pWattsStrogatz.append(self.prob1)
             x_axis.append(self.x_var)
             CC.append(self.clusteringCoef1)
             APL.append(self.APL / ringAPL)
 
-        elif self.layer1 == 'WattsStrogatz' and self.x_var in x_axis: # if the graph for the current simulation has already been generated (e.g., when testing different norms with the same graph)
+        elif self.layer1 == 'WattsStrogatz' and self.x_var in x_axis:  # if the graph for the current simulation has already been generated (e.g., when testing different norms with the same graph)
             self.layer1 = graph
-            flagLayer2 = False # If layer1 doesn't change, neither should layer2
+            flagLayer2 = False  # If layer1 doesn't change, neither should layer2
 
         elif self.layer1 == 'WattsStrogatz' and self.typeOfSim == 'avgDegree2':
             self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
@@ -139,7 +145,7 @@ class IndirectReciprocityMultiplexNetworks:
                 self.layer1 = completeGraph(self.numNodes)
                 graph = self.layer1
             else:
-                self.layer1 = graph # faster than generating a new graph each time
+                self.layer1 = graph  # faster than generating a new graph each time
 
         else:
             print('Wrong layer1 parameter!')
@@ -148,7 +154,7 @@ class IndirectReciprocityMultiplexNetworks:
         if self.layer2 == 'Random':
             self.layer2 = MultiplexNetwork(self.numNodes, self.avgDegree2)
 
-        elif self.layer2 == 'WattsStrogatz' and self.x_var not in x_axis: # this is only true when the simulation is in function of avgDegree2 and a new value is tested
+        elif self.layer2 == 'WattsStrogatz' and self.x_var not in x_axis:  # this is only true when the simulation is in function of avgDegree2 and a new value is tested
             self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree2, self.prob2, self.rndSeed)
             graph2 = self.layer2
             x_axis.append(self.x_var)
@@ -217,17 +223,23 @@ class IndirectReciprocityMultiplexNetworks:
                 # Reset payoffs after each generation
                 for node in self.nodes:
                     node['payoff'] = 0
-                #self.nodes['payoff'] = [0 for node in self.nodes]
+                # self.nodes['payoff'] = [0 for node in self.nodes]
                 # Todo - test me (and do the same for synchronous)
         else:
             print('Wrong update method.')
             exit()
 
         # self.runVisualization()
-        coopRatio = calculateAverage(LogsPerGen[-100:], 'cooperationRatio') # Use last 100 generations for the average cooperation ratio
+        if self.numGenerations >= 5000:  # If there are enough generations for the simulation to stabilize, count 90% of the results after
+            logsGen = int(self.numGenerations * 0.9)
+            coopRatio = calculateAverage(LogsPerGen[-logsGen:],
+                                         'cooperationRatio')  # Use last 100 generations for the average cooperation ratio
+        else:
+            coopRatio = calculateAverage(LogsPerGen[-100:], 'cooperationRatio')
         plotValues(coopRatio, self.socialNorm)
         stat, numRep = stationaryFraction(self.nodes, self.perceptions)
         statFrac.append(stat)
+        print("Social Norm: {}".format(self.socialNorm))
         print("Stationary fraction ( [G, B] ): ", stat)
         print("Number of reputations: ", numRep)
         # [ repAllC, repAllD, repDisc, repPDisc]; repAllC = [no. good, no. bad], AllD = ...
@@ -241,13 +253,13 @@ class IndirectReciprocityMultiplexNetworks:
 
         f = open(self.logsFileName, "a")
         f.write("######################################")
-        f.write(f"\nSocial Norm: {self.socialNorm}")
-        f.write(f"\n{self.typeOfSim}: {self.x_var}")
-        f.write(f"\nStationary fraction ( [G, B] ): {statFrac}")
-        f.write(f"\nNumber of reputations [repAllC, repAllD, repDisc, repPDisc]:{numRep}")
-        f.write(f"\nAverage Cooperation Ratio: " + str(coopRatio))
+        f.write("\nSocial Norm: {}".format(self.socialNorm))
+        f.write("\n{}: {}".format(self.typeOfSim, self.x_var))
+        f.write("\nStationary fraction ( [G, B] ): {}".format(statFrac))
+        f.write("\nNumber of reputations [repAllC, repAllD, repDisc, repPDisc]:{}".format(numRep))
+        f.write("\nAverage Cooperation Ratio: " + str(coopRatio))
         for item in LogsPerGen:
-            f.write(f"\n {item}")
+            f.write("\n {}".format(item))
         f.write("\n\n")
         f.close()
 
@@ -269,8 +281,8 @@ class IndirectReciprocityMultiplexNetworks:
         recipient = pair[1]
 
         if (donor['strategy'] == 'AllC') or \
-                (donor['strategy'] == 'Disc' and getRecipientReputation(donor, recipient, self.perceptions) == 'Good') \
-                or donor['strategy'] == 'pDisc' and getRecipientReputation(donor, recipient, self.perceptions) == 'Bad':
+                (donor['strategy'] == 'Disc' and self.assessReputation(donor, recipient) == 'Good') \
+                or donor['strategy'] == 'pDisc' and self.assessReputation(donor, recipient) == 'Bad':
             if probability(self.executionError):
                 action = 'Defect'
             else:
@@ -281,10 +293,12 @@ class IndirectReciprocityMultiplexNetworks:
             action = 'Defect'
 
         # Verify if it's working properly
-        #print('----------')
-        #print(donor['strategy'])
-        #print(getRecipientReputation(donor, recipient, self.perceptions))
-        #print(action)
+        '''
+        print('----------')
+        print(donor['strategy'])
+        print(self.perceptions[donor['pos']][recipient['pos']])
+        print(action)
+        '''
 
         return action
 
@@ -292,16 +306,17 @@ class IndirectReciprocityMultiplexNetworks:
         # The neighbors of the gossiper on layer 2 will update their perception of the donor
         # Choose one of the donor's neighbors who will witness and gossip about the interaction
         gossiper = pickNeighbor(self.layer1, pair[0], self.nodes, self.nodePos)  # Pick one of the donor's neighbors
-        updatePerception(self.socialNorm, gossiper, pair[0], pair[1], action, self.perceptions)  # Update that node's opinion of the donor
+        self.updatePerception(gossiper, pair[0], pair[1], action)  # Update that node's opinion of the donor
         neighbors = self.layer2.neighbors(gossiper['pos'])
         for neighbor in neighbors:
             if probability(self.transError):  # Transmission Error
-                if self.perceptions[gossiper['pos']][pair[0]['pos']] == 'Good':
-                    self.perceptions[neighbor][pair[0]['pos']] = 'Bad'
+                if self.assessReputation(gossiper, pair[0]) == 'Good':
+                    self.assignReputation(neighbor, pair[0], 'Bad')
                 else:
-                    self.perceptions[neighbor][pair[0]['pos']] = 'Good'
+                    self.assignReputation(neighbor, pair[0], 'Good')
             else:
                 self.perceptions[neighbor][pair[0]['pos']] = self.perceptions[gossiper['pos']][pair[0]['pos']]
+                # todo - self.assignReputation(neighbor, pair[0], self.perceptions[gossiper['pos']][pair[0]['pos']])
 
             # todo - to repeat this for the neighbors' neighbors, maybe making this function recursive
 
@@ -329,7 +344,7 @@ class IndirectReciprocityMultiplexNetworks:
             if probability(self.explorationRate):
                 mine['strategy'] = calculateInitialStrategy()
             else:
-                                  
+
                 prob = 1 / (1 + math.exp(-beta * (partner['payoff'] - mine['payoff'])))
                 if probability(prob):
                     mine['strategy'] = partner['strategy']
@@ -364,7 +379,10 @@ class IndirectReciprocityMultiplexNetworks:
         for i in range(self.numNodes):  # For a random node numNodes times
             node = random.choice(self.nodes)
             if probability(self.explorationRate):
-                node['strategy'] = calculateInitialStrategy()
+                oldStrategy = node['strategy']
+                while node['strategy'] == oldStrategy:
+                    node['strategy'] = calculateInitialStrategy()
+                # todo: Should I guarantee the new strategy is different?
             else:
                 neighbor = pickNeighbor(self.layer1, node, self.nodes, self.nodePos)
                 if neighbor:  # Only if the node has neighbors
@@ -394,6 +412,68 @@ class IndirectReciprocityMultiplexNetworks:
         if probability(prob):
             node['strategy'] = neighbor['strategy']
 
+    def assessReputation(self, subject, target):
+        # The subject is assessing the target's reputation
+        if probability(self.assessmentError):
+            if self.perceptions[subject['pos']][target['pos']] == 'Good':
+                return 'Bad'
+            else:
+                return 'Good'
+        else:
+            return self.perceptions[subject['pos']][target['pos']]
+
+    def updatePerception(self, witness, donor, recipient, action):
+        # Stern Judging (Coop with Good = G; Defect with Bad = G; else B)
+        if self.socialNorm == 'SternJudging':
+            if action == 'Cooperate' and self.assessReputation(witness, recipient) == 'Good':
+                self.assignReputation(witness, donor, 'Good')
+            elif action == 'Defect' and self.assessReputation(witness, recipient) == 'Bad':
+                self.assignReputation(witness, donor, 'Good')
+            else:
+                self.assignReputation(witness, donor, 'Bad')
+
+        # Simple Standing (Defect with Good = B; else G)
+        elif self.socialNorm == 'SimpleStanding':
+            if action == 'Defect' and self.assessReputation(witness, recipient) == 'Good':
+                self.assignReputation(witness, donor, 'Bad')
+            else:
+                self.assignReputation(witness, donor, 'Good')
+
+        # Shunning (Coop with Good = G; else B)
+        elif self.socialNorm == 'Shunning':
+            if action == 'Cooperate' and self.assessReputation(witness, recipient) == 'Good':
+                self.assignReputation(witness, donor, 'Good')
+            else:
+                self.assignReputation(witness, donor, 'Bad')
+
+        # Image Scoring (Coop = Good; Defect = Bad)
+        elif self.socialNorm == 'ImageScoring':
+            if action == 'Cooperate':
+                self.assignReputation(witness, donor, 'Good')
+            elif action == 'Defect':
+                self.assignReputation(witness, donor, 'Bad')
+            else:
+                print('Error: Action is neither "Cooperate" nor "Defect" ')
+                exit()
+
+        # All Good (All actions are deemed good - used to establish a baseline)
+        elif self.socialNorm == 'AllGood':
+            self.assignReputation(witness, donor, 'Good')
+
+        else:
+            print('Wrong socialNorm, check initial parameters')
+            exit()
+
+    def assignReputation(self, subject, target, value):
+        assert (value == 'Good' or value == 'Bad'), 'Wrong value: use Good or Bad'
+        if probability(self.assignmentError):  # probability of assigning the wrong reputation
+            if value == 'Good':
+                self.perceptions[subject['pos']][target['pos']] = 'Bad'
+            elif value == 'Bad':
+                self.perceptions[subject['pos']][target['pos']] = 'Good'
+        else:
+            self.perceptions[subject['pos']][target['pos']] = value
+
 
 if __name__ == "__main__":
     # Variables used
@@ -402,17 +482,20 @@ if __name__ == "__main__":
         'numNodes': 50,  # Number of nodes
         'prob1': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 1
         'prob2': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 2
-        'avgDegree1': 4, # Layer 1
-        'avgDegree2': 8, # Layer 2
-        'numGenerations': 500,
+        'avgDegree1': 4,  # Layer 1
+        'avgDegree2': 8,  # Layer 2
+        'numGenerations': 1000,  # 5000
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
-        'logFreq': 250,  # How frequently should the model take logs of the simulation (in generations) (unused)
+        'logFreq': 1000,
+        # How frequently should the model take logs of the simulation (in generations) (unused, now just prints iterations)
         'cost': 1,  # Cost of cooperation
         'benefit': 5,  # Benefit of receiving cooperation
-        'explorationRate': 0.001,  # Probability of a node adopting a random strategy during Social Learning
-        'transError': 0.0, # Probability of a node gossiping wrong information (0.01)
-        'executionError': 0.0, # Probability of a donor attempting to cooperate failing to do so (0.01)
-        # Transmission error, in which case an individual gossips wrong information (contrary to his beliefs)
+        'explorationRate': 0.02,  # (0.01) Probability of a node adopting a random strategy during Social Learning
+        'transError': 0.0,  # Probability of a node gossiping wrong information (0.01)
+        'executionError': 0.01,  # Probability of a donor attempting to cooperate failing to do so (0.01)
+        'assignmentError': 0.01,
+        # Probability of the assigned reputation being the opposite of the prescribed by the social norm
+        'assessmentError': 0.01,  # Probability of assessing a reputation opposite to the one actually owned
         'beta': 1,  # Pairwise comparison function: p = 1 / (1 + math.exp(-beta * (Fb - Fa)))
         'rndSeed': None,  # Indicator of random number generation state
         'gephiFileName': 'test.gexf',  # File name used for the gephi export. Must include '.gexf'
@@ -425,11 +508,17 @@ if __name__ == "__main__":
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': 'Shunning',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
         'logsFileName': 'logs.txt',
-        'typeOfSimulation': 'explorationRate', # 'pWattsStrogatz', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
-        'outputDirectory': 'explorationRate', # Name of the output directory
+        'typeOfSimulation': 'explorationRate',
+        # 'pWattsStrogatz', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
+        'outputDirectory': 'explorationRate',  # Name of the output directory
     }
 
-    #changes = [{}] # Default for a single simulation
+    # changes = [{}] # Default for a single simulation
+    changes = [{'socialNorm': 'SternJudging', },
+               {'socialNorm': 'SimpleStanding', },
+               {'socialNorm': 'Shunning', },
+               {'socialNorm': 'ImageScoring', }, ]
+
     '''changes = [{'avgDegree2': 2, 'socialNorm': 'SternJudging', },
                {'avgDegree2': 2, 'socialNorm': 'Shunning', },
                {'avgDegree2': 2, 'socialNorm': 'ImageScoring', },
@@ -454,17 +543,17 @@ if __name__ == "__main__":
                {'avgDegree2': 8, 'socialNorm': 'SimpleStanding', },
                {'avgDegree2': 8, 'socialNorm': 'AllGood', }, ]'''
 
-    '''{'explorationRate': 0.001, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.001, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.001, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.001, 'socialNorm': 'SimpleStanding', },
-               
-               {'explorationRate': 0.0050, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.0050, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.0050, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.0050, 'socialNorm': 'SimpleStanding', },'''
+    '''changes = [{'explorationRate': 0.01, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.01, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.01, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.01, 'socialNorm': 'SimpleStanding', },
 
-    changes = [{'explorationRate': 0.05, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.03, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.03, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.03, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.03, 'socialNorm': 'SimpleStanding', },
+
+               {'explorationRate': 0.05, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.05, 'socialNorm': 'Shunning', },
                {'explorationRate': 0.05, 'socialNorm': 'ImageScoring', },
                {'explorationRate': 0.05, 'socialNorm': 'SimpleStanding', },
@@ -474,15 +563,15 @@ if __name__ == "__main__":
                {'explorationRate': 0.08, 'socialNorm': 'ImageScoring', },
                {'explorationRate': 0.08, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.1, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.1, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.1, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.1, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 0.15, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.15, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.15, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.15, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.30, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.30, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.30, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.30, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 0.3, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.3, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.3, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.3, 'socialNorm': 'SimpleStanding', },
 
                {'explorationRate': 0.5, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.5, 'socialNorm': 'Shunning', },
@@ -499,7 +588,7 @@ if __name__ == "__main__":
                {'explorationRate': 0.9, 'socialNorm': 'ImageScoring', },
                {'explorationRate': 0.9, 'socialNorm': 'SimpleStanding', },
                ]
-
+	'''
     '''changes = [{'prob1': 0, 'socialNorm': 'AllGood', },
                {'prob1': 0, 'socialNorm': 'SimpleStanding', },
                {'prob1': 0, 'socialNorm': 'SternJudging', },
@@ -542,29 +631,26 @@ if __name__ == "__main__":
                {'prob1': 1, 'socialNorm': 'Shunning', },
                {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]'''
 
+    runs = 5  # How many times should each simulation be repeated
     for j, c in enumerate(changes):
         print("--- %s seconds ---" % (time.time() - start_time))
         config = initialValues.copy()
         config.update(c)
-        #dir = join('output', 'test{}'.format(j))
-        #if not os.path.exists(dir):
+        # dir = join('output', 'test{}'.format(j))
+        # if not os.path.exists(dir):
         #    mkdir(dir)
-        sim = IndirectReciprocityMultiplexNetworks(**config)
-        sim.runSimulation()
-        #with open(join(dir, 'config.json'), 'w') as fp:
-        #    json.dump(config, fp)
-
-    # print("p: ", pWattsStrogatz)
-    # print("SJ: ", SJ)
-    # print("SS: ", SS)
-    # print("SH: ", SH)
-    # print('IS: ', IS)
-    # print("CC: ", CC)
-    # print("APL: ", APL)
+        for i in range(runs):
+            sim = IndirectReciprocityMultiplexNetworks(**config)
+            sim.runSimulation()
+            print('SJ = {}'.format(SJ))
+            print('SS = {}'.format(SS))
+            print('SH = {}'.format(SH))
+            print('IS = {}'.format(IS))
 
     config = initialValues.copy()
     ch = changes.copy()
-    log = [config, ch] # one directory with the initial values and all changes
+    log = [config, ch]  # one file with the initial values and all changes
+
     if initialValues['outputDirectory']:  # if outputDirectory is None, directory will be called 'test'
         dir = join('output', initialValues['outputDirectory'])
     else:
@@ -578,16 +664,53 @@ if __name__ == "__main__":
     with open(join(dir, 'config.json'), 'w') as fp:
         json.dump(log, fp)
 
-    if initialValues['typeOfSimulation']: # if typeOfSimulation is None, there will be no plot
+    if initialValues['typeOfSimulation']:  # if typeOfSimulation is None, there will be no plot
         filename = 'output/' + initialValues['outputDirectory'] + '/' + initialValues['typeOfSimulation'] + '.png'
         i = 0
         while os.path.isfile(filename):
             i += 1
-            filename = 'output/' + initialValues['outputDirectory'] + '/' + initialValues['typeOfSimulation'] + '_{}'.format(i) + '.png'
+            filename = 'output/' + initialValues['outputDirectory'] + '/' + initialValues[
+                'typeOfSimulation'] + '_{}'.format(i) + '.png'
 
+        # To run in Sigma can't use matplotlib
+        # runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, initialValues['typeOfSimulation'], filename=filename)
+        coopBar = list(np.zeros(4))
+        if SJ:
+            SternJudging = sum(SJ) / len(SJ)
+            coopBar[0] = SternJudging
+        if SS:
+            SimpleStanding = sum(SS) / len(SS)
+            coopBar[1] = SimpleStanding
+        if SH:
+            Shunning = sum(SH) / len(SH)
+            coopBar[2] = Shunning
+        if IS:
+            ImageScoring = sum(IS) / len(IS)
+            coopBar[3] = ImageScoring
 
-        runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, initialValues['typeOfSimulation'], filename=filename) # Insert here the x_axis and x_label
+        print('Coop Bar =  {}'.format(coopBar))
 
-    #start_time = time.time()
-    #print("--- %s seconds ---" % (time.time() - start_time))
-    #exit()
+        if not os.path.isfile('pltOutput.txt'):
+            f = open('pltOutput.txt', "x")
+
+        f = open('pltOutput.txt', "a")
+        f.write("\n######################################")
+        # f.write("\nAllG: {}".format(AllG))
+        f.write("\nSJ = {}".format(SJ))
+        f.write("\nSH = {}".format(SH))
+        f.write("\nIS = {}".format(IS))
+        f.write("\nSS = {}".format(SS))
+        f.write("\ncoopRatio = {}".format(coopBar))
+        # f.write("\nx_axis = {}".format(x_axis))
+        # f.write("\ntypeOfSimulation = \'{}\'".format(initialValues['typeOfSimulation']))
+        # f.write("\nfilename: \'{}\' ".format(filename))
+        f.close()
+
+    # start_time = time.time()
+    # print("--- %s seconds ---" % (time.time() - start_time))
+    # exit()
+
+# todo: average of R runs
+# todo: expRate = 0.02: Calculate coopRatio of SJ, SS, SH and IS
+
+# todo: executionError, assignmentError, assessmentError
