@@ -2,7 +2,7 @@ import networkx as nx
 import numpy as np
 import math
 import random
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import os.path
 from os.path import join
 from itertools import count
@@ -197,7 +197,6 @@ def plotValues(coopRatio, socialNorm):
         print("Error, wrong social norm name!")
         exit()
 
-'''
 def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
     if SJ:
         plt.plot(x_axis, SJ, '^-r', label='SJ')
@@ -221,7 +220,15 @@ def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
     plt.legend()
     plt.savefig(filename)
     plt.show()
-'''
+
+
+def barPlot(coopRatio):
+    norms = ['SJ', 'SS', 'SH', 'IS']
+    plt.bar(norms, coopRatio, color=['red', 'green', 'yellow', 'blue'])
+    plt.ylabel("Coop Ratio")
+    #plt.ticks(norms, coopRatio)
+    plt.savefig('Bar Chart (SS_test)')
+    plt.show()
 
 
 def countFreq(arr):
