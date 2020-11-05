@@ -206,6 +206,7 @@ class IndirectReciprocityMultiplexNetworks:
                 LogsPerGen.append(lg)
                 # stat, numRep = stationaryFraction(self.nodes, self.perceptions)
                 # statFrac.append(stat)
+
                 # Reset payoffs after each generation
                 for node in self.nodes:
                     node['payoff'] = 0
@@ -221,9 +222,7 @@ class IndirectReciprocityMultiplexNetworks:
                 LogsPerGen.append(lg)
                 # stat, numRep = stationaryFraction(self.nodes, self.perceptions) # To see the evolution
                 # statFrac.append(stat)
-                # Reset payoffs after each generation
-                for node in self.nodes:
-                    node['payoff'] = 0
+
         else:
             print('Wrong update method.')
             exit()
@@ -383,18 +382,21 @@ class IndirectReciprocityMultiplexNetworks:
                 oldStrategy = node['strategy']
                 while node['strategy'] == oldStrategy:
                     node['strategy'] = calculateInitialStrategy()
-                # todo: Should I guarantee the new strategy is different?
             else:
                 neighbor = pickNeighbor(self.layer1, node, self.nodes, self.nodePos)
                 if neighbor:  # Only if the node has neighbors
                     chosen = [node, neighbor]
-                    interactionPairs = getNeighborsAsynchronous(self.layer1, chosen, self.nodes, self.nodePos,
-                                                                self.numInteractions)
+                    interactionPairs, gamesPlayed = getNeighborsAsynchronous(self.layer1, chosen, self.nodes, self.nodePos, self.numInteractions)
                     actions = []
                     append = actions.append
+
                     for n, pair in enumerate(interactionPairs):
                         append(self.runInteraction(pair))
                         self.runGossip(pair, actions[-1])  # Update perceptions of the gossiper's neighbors in L2
+
+                    # Calculate the average payoff for both individuals
+                    chosen[0]['payoff'] /= gamesPlayed[0]
+                    chosen[1]['payoff'] /= gamesPlayed[1]
 
                     self.socialLearningAsynchronous(node, neighbor)
                     actionFreq = countFreq(actions)
@@ -404,7 +406,9 @@ class IndirectReciprocityMultiplexNetworks:
 
                 else:
                     print("------ No neighbors ------")
-
+            # Reset payoffs after each strategy update
+            for node in self.nodes:
+                node['payoff'] = 0
         return {'cooperationRatio': cooperationRatio}
 
     def socialLearningAsynchronous(self, node, neighbor):
@@ -490,7 +494,7 @@ if __name__ == "__main__":
         'prob2': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 2
         'avgDegree1': 4,  # Layer 1
         'avgDegree2': 8,  # Layer 2
-        'numGenerations': 500,  # 5000
+        'numGenerations': 1000,  # 5000
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
         'logFreq': 1000,
         # How frequently should the model take logs of the simulation (in generations) (unused, now just prints iterations)
@@ -687,7 +691,7 @@ if __name__ == "__main__":
         f.write("\nIS = {}".format(IS))
         f.write("\nSS = {}".format(SS))
 
-        # To run in Sigma can't use matplotlib
+        # To run in Sigma can't use matplotlib - don't forget to comment this line
         runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, initialValues['typeOfSimulation'], filename=filename)
         '''
         coopBar = list(np.zeros(4))
@@ -724,7 +728,3 @@ if __name__ == "__main__":
     # start_time = time.time()
     # print("--- %s seconds ---" % (time.time() - start_time))
     # exit()
-
-# todo: expRate = 0.02: Calculate coopRatio of SJ, SS, SH and IS
-
-# todo: executionError, assignmentError, assessmentError

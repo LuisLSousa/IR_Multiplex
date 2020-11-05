@@ -121,7 +121,10 @@ def getNeighborsAsynchronous(G, chosen_nodes, nodeInfo, pos, numInteractions):
     # Get all neighbors of both nodes (donor and recipient)
     pairs = []
     done = []  # to make sure each link A-B or B-A is only used once
-    for node in chosen_nodes:
+    gamesPlayed = [0, numInteractions] # Games played by the node and the chosen neighbor respectively
+    # gamesPlayed[1] starts at numInteractions because the node and the neighbor interact numInteractions times on the node's turn
+    g = 0
+    for node in chosen_nodes: # Each node has its turn
         neighbors = G.neighbors(node['pos'])
         for n in neighbors:
             neighborIt = pos.index(n)
@@ -132,12 +135,13 @@ def getNeighborsAsynchronous(G, chosen_nodes, nodeInfo, pos, numInteractions):
                         pairs.append([node, nodeInfo[neighborIt]])
                     else:
                         pairs.append([nodeInfo[neighborIt], node])
-
+                    gamesPlayed[g] += 1
+        g += 1
         done.append(node['pos'])
 
     # random.shuffle(pairs)  # This may be unnecessary
 
-    return pairs
+    return pairs, gamesPlayed
 
 def pickNeighbor(G, node, nodeInfo, pos):
     # Pick a neighbor
