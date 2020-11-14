@@ -212,12 +212,15 @@ def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
         plt.plot(x_axis, SS, '<-g', label='SS')
     if IS:
         plt.plot(x_axis, IS, '-or', label='IS')
-    #plt.plot(x_axis, CC, '-Hg', label='CC')
-    #plt.plot(x_axis, APL, '-D', label='APL')
+    if CC:
+        plt.plot(x_axis, CC, '-Hg', label='CC')
+    if APL:
+        plt.plot(x_axis, APL, '-D', label='APL')
+
     if x_label == 'avgDegree' or x_label == 'avgDegree2':
         plt.xscale('linear')
     else:
-        plt.xscale('symlog', linthreshx=0.0001) # Use a linthreshx equal to the lowest probability after 0
+        plt.xscale('symlog', linthreshx=0.00001) # Use a linthreshx equal to the lowest probability after 0
     #plt.xscale('log') # linear, log, symlog
     plt.xlabel(x_label)
     plt.ylabel("Coop Ratio")
@@ -225,13 +228,15 @@ def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
     plt.savefig(filename)
     plt.show()
 
+def barPlot(coopRatio, filename):
+    norms = ['SJ', 'SS', 'IS', 'SH']
+    for i in range(len(coopRatio)):
+        plt.text(norms[i], coopRatio[i], "{:.3f}".format(coopRatio[i]))
 
-def barPlot(coopRatio):
-    norms = ['SJ', 'SS', 'SH', 'IS']
-    plt.bar(norms, coopRatio, color=['red', 'green', 'yellow', 'blue'])
+    plt.bar(norms, coopRatio, color=['#0000fa', '#db1a1a', '#fe7e07', '#199116'])
     plt.ylabel("Coop Ratio")
-    #plt.ticks(norms, coopRatio)
-    plt.savefig('Bar Chart (SS_test)')
+    # plt.ticks(norms, coopRatio)
+    plt.savefig(filename)
     plt.show()
 
 
@@ -305,3 +310,22 @@ def calculateAverage(arr, variable):
         sum += item[variable]
 
     return sum / len(arr)
+
+def writeFile(coopBar, initialValues, filename):
+
+    f = open('pltOutput.txt', "a")
+    f.write("\n######################################")
+    if AllG:
+        f.write("\nAllG = {}".format(AllG))
+    f.write("\nSJ = {}".format(SJ))
+    f.write("\nSH = {}".format(SH))
+    f.write("\nIS = {}".format(IS))
+    f.write("\nSS = {}".format(SS))
+    if coopBar:
+        f.write("\ncoopRatio = {}".format(coopBar))
+        print('Coop Bar =  {}'.format(coopBar))
+
+    f.write("\nx_axis = {}".format(x_axis))
+    f.write("\ntypeOfSimulation = \'{}\'".format(initialValues['typeOfSimulation']))
+    f.write("\nfilename: \'{}\' ".format(filename))
+    f.close()

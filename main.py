@@ -41,7 +41,12 @@ class IndirectReciprocityMultiplexNetworks:
         self.numSwap = numSwap
         self.clusteringCoef1 = 0  # Clustering Coefficient used in the plots
         self.APL = 0  # Average path length
+
+        # Ensure the directory where the logs file will be stored exists
+        if not os.path.exists('output/' + outputDirectory):
+            mkdir('output/' + outputDirectory)
         self.logsFileName = 'output/' + outputDirectory + '/' + logsFileName
+
         self.typeOfSim = typeOfSimulation
 
         # Variable used for the x_axis in the final plot
@@ -91,15 +96,12 @@ class IndirectReciprocityMultiplexNetworks:
         # for i in range(self.numNodes):
         #   print('Node:', self.nodes[i]['id'], '| Strategy:', self.nodes[i]['strategy'])
 
-        # Each node has its own perception of all others
-        # for node in self.nodes:
-        #    node['perception'] = [calculateInitialReputation() for i in self.nodes]
         self.perceptions = [[calculateInitialReputation() for x in range(len(self.nodes))] for y in
                             range(len(self.nodes))]
 
         # Each node also has a random perception of himself.
         # Example: Node number 3's perception of node number 7
-        # print(self.nodes[3]['perception'][7]) # old
+        # print(self.perception[3][7]) # old
 
     def initiateGraph(self):
         global ringAPL
@@ -114,17 +116,19 @@ class IndirectReciprocityMultiplexNetworks:
         elif self.layer1 == 'WattsStrogatz' and not self.typeOfSim:  # If it's just one simulation without a plot
             self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
 
-        elif self.layer1 == 'WattsStrogatz' and self.x_var not in x_axis and self.typeOfSim != 'avgDegree2':  # if the simulation is not in function of the avgDegree2
+        # only generates a new graph when a new pWattsStrogatz is given - ensures all norms use the same graph for each value of pWS
+        elif self.layer1 == 'WattsStrogatz' and self.x_var not in x_axis and self.typeOfSim != 'avgDegree2':
             self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
             flagLayer2 = True  # When layer1 changes, layer2 should change as well
-            graph = self.layer1
-            self.clusteringCoef1 = nx.transitivity(self.layer1)
-            self.APL = nx.average_shortest_path_length(self.layer1)
+            graph = copy.deepcopy(self.layer1) # stores the layer1 to ensure all norms use the same exact graph
 
-            if self.prob1 == 0:  # Used to normalize the APL for different values of "p-watts-strogatz"
+            self.clusteringCoef1 = nx.transitivity(self.layer1) # Calculate the clustering coefficient and store it for the plot
+            self.APL = nx.average_shortest_path_length(self.layer1) # Calculate the average path length and store it
+
+            if self.prob1 == 0:
+                # Used to normalize the APL for different values of "p-Watts-Strogatz"
                 ringAPL = self.APL
 
-            # pWattsStrogatz.append(self.prob1)
             x_axis.append(self.x_var)
             CC.append(self.clusteringCoef1)
             APL.append(self.APL / ringAPL)
@@ -133,18 +137,19 @@ class IndirectReciprocityMultiplexNetworks:
             self.layer1 = graph
             flagLayer2 = False  # If layer1 doesn't change, neither should layer2
 
+        # If the simulation is regarding the average degree of L2, just create the graph
         elif self.layer1 == 'WattsStrogatz' and self.typeOfSim == 'avgDegree2':
             self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
             graph = self.layer1
 
-        elif self.layer1 == 'BarabasiAlbert':
+        elif self.layer1 == 'BarabasiAlbert': # todo: if any simulations are made using the BA model, edit this to include self.x_var
             self.layer1 = barabasiAlbert(self.numNodes, self.avgDegree1, self.rndSeed)
 
         elif self.layer1 == 'Complete':
             if self.x_var not in x_axis:
                 x_axis.append(self.x_var)
                 self.layer1 = completeGraph(self.numNodes)
-                graph = self.layer1
+                graph = copy.deepcopy(self.layer1)
             else:
                 self.layer1 = graph  # faster than generating a new graph each time
 
@@ -157,7 +162,7 @@ class IndirectReciprocityMultiplexNetworks:
 
         elif self.layer2 == 'WattsStrogatz' and self.x_var not in x_axis:  # this is only true when the simulation is in function of avgDegree2 and a new value is tested
             self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree2, self.prob2, self.rndSeed)
-            graph2 = self.layer2
+            graph2 = copy.deepcopy(self.layer2)
             x_axis.append(self.x_var)
 
         elif self.layer2 == 'WattsStrogatz' and self.x_var in x_axis:
@@ -171,14 +176,14 @@ class IndirectReciprocityMultiplexNetworks:
 
         elif self.layer2 == 'RN' and flagLayer2:
             self.layer2 = randomizedNeighborhoods(self.layer1, self.numSwap, self.numNodes, self.rndSeed)
-            graph2 = self.layer2
+            graph2 = copy.deepcopy(self.layer2)
 
         elif self.layer2 == 'RN' and not flagLayer2:
             self.layer2 = graph2
 
         elif self.layer2 == 'TR' and flagLayer2:
             self.layer2 = totalRandomization(self.layer1, self.numNodes)
-            graph2 = self.layer2
+            graph2 = copy.deepcopy(self.layer2)
 
         elif self.layer2 == 'TR' and not flagLayer2:
             self.layer2 = graph2
@@ -207,7 +212,7 @@ class IndirectReciprocityMultiplexNetworks:
                 # stat, numRep = stationaryFraction(self.nodes, self.perceptions)
                 # statFrac.append(stat)
 
-                # Reset payoffs after each generation
+                # Reset payoffs after each generation because nodes update their strategies at the same time
                 for node in self.nodes:
                     node['payoff'] = 0
 
@@ -228,15 +233,16 @@ class IndirectReciprocityMultiplexNetworks:
             exit()
 
         # self.runVisualization()
-        if self.numGenerations >= 5000:  # If there are enough generations for the simulation to stabilize, count 90% of the results after
+        if self.numGenerations >= 5000:  # If there are enough generations for the simulation to stabilize, count 80% of the results after
             logsGen = int(self.numGenerations * 0.8)
-            coopRatio = calculateAverage(LogsPerGen[-logsGen:],
-                                         'cooperationRatio')  # Use last 100 generations for the average cooperation ratio
+            coopRatio = calculateAverage(LogsPerGen[-logsGen:], 'cooperationRatio')
+
         else:
-            coopRatio = calculateAverage(LogsPerGen[-100:], 'cooperationRatio')
+            coopRatio = calculateAverage(LogsPerGen[-100:], 'cooperationRatio') # Use last 100 generations for the average cooperation ratio
         plotValues(coopRatio, self.socialNorm)
         stat, numRep = stationaryFraction(self.nodes, self.perceptions)
         statFrac.append(stat)
+        # fixme: average stationary fraction of all the runs
         print("Social Norm: {}".format(self.socialNorm))
         print("Stationary fraction ( [G, B] ): ", stat)
         print("Number of reputations: ", numRep)
@@ -248,12 +254,15 @@ class IndirectReciprocityMultiplexNetworks:
         # If file doesn't exist, create it
         if not os.path.isfile(self.logsFileName):
             f = open(self.logsFileName, "x")
-
         f = open(self.logsFileName, "a")
         f.write("######################################")
         f.write("\nSocial Norm: {}".format(self.socialNorm))
+        if CC:
+            f.write("\nClustering Coefficient: {}".format(self.clusteringCoef1))
+            f.write("\nAverage Path Length: {}".format(self.APL / ringAPL))
+
         f.write("\n{}: {}".format(self.typeOfSim, self.x_var))
-        f.write("\nStationary fraction ( [G, B] ): {}".format(statFrac))
+        f.write("\nStationary fraction of Good reputations: {}".format(statFrac[0][0]/sum(statFrac[0])))
         f.write("\nNumber of reputations [repAllC, repAllD, repDisc, repPDisc]:{}".format(numRep))
         f.write("\nAverage Cooperation Ratio: " + str(coopRatio))
         for item in LogsPerGen:
@@ -399,6 +408,11 @@ class IndirectReciprocityMultiplexNetworks:
                     chosen[1]['payoff'] /= gamesPlayed[1]
 
                     self.socialLearningAsynchronous(node, neighbor)
+
+                    # Reset payoffs after each social learning step
+                    for node in self.nodes:
+                        node['payoff'] = 0
+
                     actionFreq = countFreq(actions)
                     cooperationRatio = actionFreq['Cooperate'] if 'Cooperate' in actionFreq.keys() else 0
                     if 'Cooperate' not in actionFreq.keys() and 'Defect' not in actionFreq.keys():
@@ -406,13 +420,11 @@ class IndirectReciprocityMultiplexNetworks:
 
                 else:
                     print("------ No neighbors ------")
-            # Reset payoffs after each strategy update
-            for node in self.nodes:
-                node['payoff'] = 0
+
         return {'cooperationRatio': cooperationRatio}
 
     def socialLearningAsynchronous(self, node, neighbor):
-        # Social learning where nodes copy another node's strategy with a probability proportionate to their fitness
+        # Social learning where a node copies another node's strategy with a probability proportionate to their fitness
         prob = 1 / (1 + mp.exp(-self.beta * (neighbor['payoff'] - node['payoff'])))
         if probability(prob):
             node['strategy'] = neighbor['strategy']
@@ -458,7 +470,7 @@ class IndirectReciprocityMultiplexNetworks:
         else:
             print('Wrong socialNorm, check initial parameters')
             exit()
-
+            
     def assessReputation(self, subject, target):
         # The subject is assessing the target's reputation
         if probability(self.assessmentError):
@@ -489,28 +501,28 @@ if __name__ == "__main__":
     # Variables used
     start_time = time.time()
     initialValues = {
-        'numNodes': 50,  # Number of nodes
+        'numNodes': 1000,  # Number of nodes
         'prob1': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 1
         'prob2': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 2
-        'avgDegree1': 4,  # Layer 1
+        'avgDegree1': 8,  # Layer 1
         'avgDegree2': 8,  # Layer 2
         'numGenerations': 1000,  # 5000
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
-        'logFreq': 1000,
+        'logFreq': 500,
         # How frequently should the model take logs of the simulation (in generations) (unused, now just prints iterations)
         'cost': 1,  # Cost of cooperation
         'benefit': 5,  # Benefit of receiving cooperation
-        'explorationRate': 0.02,  # (0.01) Probability of a node adopting a random strategy instead of Social Learning
-        'transError': 0.0,  # Probability of a node gossiping wrong information (0.01)
+        'explorationRate': 0.01,  # (0.01) Probability of a node adopting a random strategy instead of Social Learning
+        'transError': 0.01,  # Probability of a node gossiping wrong information (0.01)
         'executionError': 0.01,  # Probability of a donor attempting to cooperate failing to do so (0.01)
-        'assignmentError': 0.01,
+        'assignmentError': 0.0,
         # Probability of the assigned reputation being the opposite of the prescribed by the social norm (extra)
-        'assessmentError': 0.01,  # Probability of assessing a reputation opposite to the one actually owned (extra)
+        'assessmentError': 0.0,  # Probability of assessing a reputation opposite to the one actually owned (extra)
         'beta': 1,  # Pairwise comparison function: p = 1 / (1 + math.exp(-beta * (Fb - Fa)))
         'rndSeed': None,  # Indicator of random number generation state
         'gephiFileName': 'test.gexf',
         # File name used for the gephi export. Must include '.gexf' (Currently unused as the visualization is not needed)
-        'layer1': 'Complete',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert', 'Complete'
+        'layer1': 'WattsStrogatz',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert', 'Complete'
         'layer2': 'PO',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
         # 'PO' - Perfect Overlap (Layers are equal),
         # 'RN' - Randomized Neighborhoods (same degree, different neighborhoods),
@@ -519,13 +531,17 @@ if __name__ == "__main__":
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': 'SimpleStanding',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
         'logsFileName': 'logs.txt',
-        'typeOfSimulation': 'explorationRate',
+        'typeOfSimulation': 'pWattsStrogatz',
         # 'pWattsStrogatz', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
-        'outputDirectory': 'explorationRate',  # Name of the output directory
+        'outputDirectory': 'pWattsStrogatz',  # Name of the output directory
+
     }
     runs = 1  # How many times should each simulation be repeated
+    if runs < 1:
+        print('Number of runs must be at least 1.')
+        exit()
 
-    # changes = [{}] # Default for a single simulation
+    changes = [{}] # Default for a single simulation
     '''changes = [{'socialNorm': 'SternJudging', },
                {'socialNorm': 'SimpleStanding', },
                {'socialNorm': 'Shunning', },
@@ -555,53 +571,70 @@ if __name__ == "__main__":
                {'avgDegree2': 8, 'socialNorm': 'SimpleStanding', },
                {'avgDegree2': 8, 'socialNorm': 'AllGood', }, ]'''
 
-    changes = [{'explorationRate': 0.01, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.01, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.01, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.01, 'socialNorm': 'SimpleStanding', },
+    '''changes = [{'explorationRate': 0.1/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.1/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.1/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.1/50, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.03, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.03, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.03, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.03, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 0.3/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.3/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.3/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.3/50, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.05, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.05, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.05, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.05, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 0.5/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.5/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.5/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.5/50, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.08, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.08, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.08, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.08, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 0.8/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 0.8/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 0.8/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 0.8/50, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.15, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.15, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.15, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.15, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 1/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 1/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 1/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 1/50, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.3, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.3, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.3, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.3, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 3/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 3/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 3/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 3/50, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.5, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.5, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.5, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.5, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 5/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 5/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 5/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 5/50, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.7, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.7, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.7, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.7, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 8/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 8/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 8/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 8/50, 'socialNorm': 'SimpleStanding', },
 
-               {'explorationRate': 0.9, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.9, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.9, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.9, 'socialNorm': 'SimpleStanding', },
+               {'explorationRate': 10/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 10/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 10/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 10/50, 'socialNorm': 'SimpleStanding', },
+
+               {'explorationRate': 20/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 20/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 20/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 20/50, 'socialNorm': 'SimpleStanding', },
+
+               {'explorationRate': 30/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 30/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 30/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 30/50, 'socialNorm': 'SimpleStanding', },
+
+               {'explorationRate': 40/50, 'socialNorm': 'SternJudging', },
+               {'explorationRate': 40/50, 'socialNorm': 'Shunning', },
+               {'explorationRate': 40/50, 'socialNorm': 'ImageScoring', },
+               {'explorationRate': 40/50, 'socialNorm': 'SimpleStanding',},
                ]
+    '''
 
-    '''changes = [{'prob1': 0, 'socialNorm': 'AllGood', },
+    '''
+    changes = [{'prob1': 0, 'socialNorm': 'AllGood', },
                {'prob1': 0, 'socialNorm': 'SimpleStanding', },
                {'prob1': 0, 'socialNorm': 'SternJudging', },
                {'prob1': 0, 'socialNorm': 'Shunning', },
@@ -641,7 +674,8 @@ if __name__ == "__main__":
                {'prob1': 1, 'socialNorm': 'SimpleStanding', },
                {'prob1': 1, 'socialNorm': 'SternJudging', },
                {'prob1': 1, 'socialNorm': 'Shunning', },
-               {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]'''
+               {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]
+    '''
 
     for j, c in enumerate(changes):
         print("--- %s seconds ---" % (time.time() - start_time))
@@ -670,8 +704,6 @@ if __name__ == "__main__":
     if not os.path.exists(dir):
         mkdir(dir)
 
-    # todo: while os.path.exists(dir): add _x to dir (x is an int)
-
     with open(join(dir, 'config.json'), 'w') as fp:
         json.dump(log, fp)
 
@@ -683,16 +715,10 @@ if __name__ == "__main__":
             filename = 'output/' + initialValues['outputDirectory'] + '/' + initialValues[
                 'typeOfSimulation'] + '_{}'.format(i) + '.png'
 
-        f = open('pltOutput.txt', "a")
-        f.write("\n######################################")
-        # f.write("\nAllG: {}".format(AllG))
-        f.write("\nSJ = {}".format(SJ))
-        f.write("\nSH = {}".format(SH))
-        f.write("\nIS = {}".format(IS))
-        f.write("\nSS = {}".format(SS))
-
+        writeFile(None, initialValues, filename)
         # To run in Sigma can't use matplotlib - don't forget to comment this line
         runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, initialValues['typeOfSimulation'], filename=filename)
+
         '''
         coopBar = list(np.zeros(4))
         if SJ:
@@ -701,30 +727,24 @@ if __name__ == "__main__":
         if SS:
             SimpleStanding = sum(SS)/len(SS)
             coopBar[1] = SimpleStanding
-        if SH:
-            Shunning = sum(SH)/len(SH)
-            coopBar[2] = Shunning
         if IS:
             ImageScoring = sum(IS)/len(IS)
-            coopBar[3] = ImageScoring
+            coopBar[2] = ImageScoring
+        if SH:
+            Shunning = sum(SH)/len(SH)
+            coopBar[3] = Shunning
+        
+        filename = 'Bar Chart'        
+        while os.path.isfile(filename):
+            i += 1
+            filename = 'output/' + initialValues['outputDirectory'] + '/' + 'BarChart' + '_{}'.format(i) + '.png'
+        
+        writeFile(coopBar, initialValues, filename)
 
-        print('Coop Bar =  {}'.format(coopBar))
-
-        f = open('pltOutput.txt', "a")
-        f.write("\n######################################")
-        #f.write("\nAllG: {}".format(AllG))
-        f.write("\nSJ = {}".format(SJ))
-        f.write("\nSH = {}".format(SH))
-        f.write("\nIS = {}".format(IS))
-        f.write("\nSS = {}".format(SS))
-        f.write("\ncoopRatio = {}".format(coopBar))
-        #f.write("\nx_axis = {}".format(x_axis))
-        #f.write("\ntypeOfSimulation = \'{}\'".format(initialValues['typeOfSimulation']))
-        #f.write("\nfilename: \'{}\' ".format(filename))
-        f.close()
-
-        #barPlot(coopBar)
+        barPlot(coopBar, filename)
         '''
+
+
     # start_time = time.time()
     # print("--- %s seconds ---" % (time.time() - start_time))
     # exit()
