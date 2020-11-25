@@ -98,7 +98,7 @@ def getNeighborPairs(G, nodeInfo, pos, numInteractions):
     pairs = []
     done = []  # to make sure each link A-B or B-A is only used once
     for it, n in enumerate(nodeInfo):
-        neighbors = G.neighbors(n['pos'])
+        neighbors = G[n['pos']] # this used to be G.neighbors(n['pos'})
         for neighbor in neighbors:
             neighborIt = pos.index(neighbor)
             if neighborIt not in done:
@@ -125,7 +125,7 @@ def getNeighborsAsynchronous(G, chosen_nodes, nodeInfo, pos, numInteractions):
     # gamesPlayed[1] starts at numInteractions because the node and the neighbor interact numInteractions times on the node's turn
     g = 0
     for node in chosen_nodes: # Each node has its turn
-        neighbors = G.neighbors(node['pos'])
+        neighbors = G[node['pos']] # this used to be G.neighbors()
         for n in neighbors:
             neighborIt = pos.index(n)
             if neighborIt not in done: # make sure nodes don't play more than numInteractions times
@@ -145,7 +145,8 @@ def getNeighborsAsynchronous(G, chosen_nodes, nodeInfo, pos, numInteractions):
 
 def pickNeighbor(G, node, nodeInfo, pos):
     # Pick a neighbor
-    neighbors = G.neighbors(node['pos'])
+    # neighbors = G.neighbors(node['pos']) # this method is slower than the method below
+    neighbors = G[node['pos']]
     arr = []
     for neighbor in neighbors:
         arr.append(nodeInfo[pos.index(neighbor)])
@@ -223,7 +224,7 @@ def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
         plt.xscale('symlog', linthreshx=0.00001) # Use a linthreshx equal to the lowest probability after 0
     #plt.xscale('log') # linear, log, symlog
     plt.xlabel(x_label)
-    plt.ylabel("Coop Ratio")
+    plt.ylabel("Cooperation Ratio")
     plt.legend()
     plt.savefig(filename)
     plt.show()

@@ -61,12 +61,10 @@ class IndirectReciprocityMultiplexNetworks:
         elif not self.typeOfSim:
             self.x_var = None
         else:
-            print('Wrong typeOfSimulation!')
-            exit()
+            raise Exception('Wrong typeOfSimulation!')
 
         if self.numInteractions <= 0:
-            print('numInteractions must be > 0')
-            exit()
+            raise Exception('numInteractions must be > 0')
 
         if self.explorationRate == 1:
             print('For explorationRate = 1, nodes always adopt a random strategy, and the donation game is never played. \
@@ -82,7 +80,7 @@ class IndirectReciprocityMultiplexNetworks:
         append = self.nodes.append  # Faster than calling self.nodes.append every time
         for i in range(self.numNodes):
             append({
-                'pos': self.nodePos[i],  # Redundant?
+                'pos': self.nodePos[i],
                 'id': self.idIterator,
                 'payoff': 0,
                 'strategy': calculateInitialStrategy(),
@@ -99,8 +97,8 @@ class IndirectReciprocityMultiplexNetworks:
         self.perceptions = [[calculateInitialReputation() for x in range(len(self.nodes))] for y in
                             range(len(self.nodes))]
 
-        # Each node also has a random perception of himself.
-        # Example: Node number 3's perception of node number 7
+        # Note: Each node also has a random perception of itself.
+        # Usage example: Node number 3's perception of node number 7
         # print(self.perception[3][7]) # old
 
     def initiateGraph(self):
@@ -242,7 +240,7 @@ class IndirectReciprocityMultiplexNetworks:
         plotValues(coopRatio, self.socialNorm)
         stat, numRep = stationaryFraction(self.nodes, self.perceptions)
         statFrac.append(stat)
-        # fixme: average stationary fraction of all the runs
+
         print("Social Norm: {}".format(self.socialNorm))
         print("Stationary fraction ( [G, B] ): ", stat)
         print("Number of reputations: ", numRep)
@@ -314,8 +312,8 @@ class IndirectReciprocityMultiplexNetworks:
         # Choose one of the donor's neighbors who will witness and gossip about the interaction
         gossiper = pickNeighbor(self.layer1, pair[0], self.nodes, self.nodePos)  # Pick one of the donor's neighbors
         self.updatePerception(gossiper, pair[0], pair[1], action)  # Update that node's opinion of the donor
-        neighbors = self.layer2.neighbors(gossiper['pos'])
-        for neighbor in neighbors:
+        neighbors = self.layer2[gossiper['pos']]
+        for neighbor in neighbors: # neighbor is an integer with the node's index
             if probability(self.transError):  # Transmission Error
                 if self.assessReputation(gossiper, pair[0]) == 'Good':
                     self.assignReputation(neighbor, pair[0], 'Bad')
@@ -323,9 +321,6 @@ class IndirectReciprocityMultiplexNetworks:
                     self.assignReputation(neighbor, pair[0], 'Good')
             else:
                 self.perceptions[neighbor][pair[0]['pos']] = self.perceptions[gossiper['pos']][pair[0]['pos']]
-                # todo - self.assignReputation(neighbor, pair[0], self.perceptions[gossiper['pos']][pair[0]['pos']])
-
-            # todo - to repeat this for the neighbors' neighbors, maybe making this function recursive
 
     def socialLearning(self):
         # social learning where nodes copy another node's strategy with a given probability if
@@ -439,7 +434,7 @@ class IndirectReciprocityMultiplexNetworks:
             else:
                 self.assignReputation(witness, donor, 'Bad')
 
-        # Simple Standing (Defect with Good = B; else G)
+        # Simple Standing (Defect against Good = B; else G)
         elif self.socialNorm == 'SimpleStanding':
             if action == 'Defect' and self.assessReputation(witness, recipient) == 'Good':
                 self.assignReputation(witness, donor, 'Bad')
@@ -502,8 +497,8 @@ if __name__ == "__main__":
     start_time = time.time()
     initialValues = {
         'numNodes': 1000,  # Number of nodes
-        'prob1': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 1
-        'prob2': 0.5,  # Probability of rewiring links (WattsStrogatz) for Layer 2
+        'prob1':  0.01,  # (0.5) Probability of rewiring links (WattsStrogatz) for Layer 1
+        'prob2': 0.01,  # Probability of rewiring links (WattsStrogatz) for Layer 2
         'avgDegree1': 8,  # Layer 1
         'avgDegree2': 8,  # Layer 2
         'numGenerations': 1000,  # 5000
@@ -523,7 +518,7 @@ if __name__ == "__main__":
         'gephiFileName': 'test.gexf',
         # File name used for the gephi export. Must include '.gexf' (Currently unused as the visualization is not needed)
         'layer1': 'WattsStrogatz',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert', 'Complete'
-        'layer2': 'PO',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
+        'layer2': 'WattsStrogatz',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
         # 'PO' - Perfect Overlap (Layers are equal),
         # 'RN' - Randomized Neighborhoods (same degree, different neighborhoods),
         # 'TR' - Total Randomization (degree and neighborhoods are different)
@@ -531,15 +526,14 @@ if __name__ == "__main__":
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': 'SimpleStanding',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
         'logsFileName': 'logs.txt',
-        'typeOfSimulation': 'pWattsStrogatz',
+        'typeOfSimulation': None,
         # 'pWattsStrogatz', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
         'outputDirectory': 'pWattsStrogatz',  # Name of the output directory
 
     }
     runs = 1  # How many times should each simulation be repeated
     if runs < 1:
-        print('Number of runs must be at least 1.')
-        exit()
+        raise Exception('Number of runs must be at least 1.')
 
     changes = [{}] # Default for a single simulation
     '''changes = [{'socialNorm': 'SternJudging', },
@@ -569,7 +563,8 @@ if __name__ == "__main__":
                {'avgDegree2': 8, 'socialNorm': 'Shunning', },
                {'avgDegree2': 8, 'socialNorm': 'ImageScoring', },
                {'avgDegree2': 8, 'socialNorm': 'SimpleStanding', },
-               {'avgDegree2': 8, 'socialNorm': 'AllGood', }, ]'''
+               {'avgDegree2': 8, 'socialNorm': 'AllGood', }, ]
+    '''
 
     '''changes = [{'explorationRate': 0.1/50, 'socialNorm': 'SternJudging', },
                {'explorationRate': 0.1/50, 'socialNorm': 'Shunning', },
