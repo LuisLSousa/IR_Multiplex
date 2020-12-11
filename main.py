@@ -8,12 +8,12 @@ from mpmath import *
 
 class IndirectReciprocityMultiplexNetworks:
 
-    def __init__(self, numNodes=100, prob1=0.5, prob2=0.5, avgDegree1=4, avgDegree2=4, numGenerations=100,
-                 numInteractions=1,
-                 logFreq=1, cost=0.1, benefit=1, transError=0.01, executionError=0.01, assessmentError=0.01,
-                 assignmentError=0.01, beta=10, update='Synchronous', explorationRate=0.001,
+    def __init__(self, numNodes=1000, prob1=0.1, prob2=0.1, avgDegree1=8, avgDegree2=8, numGenerations=1000,
+                 numInteractions=2,
+                 logFreq=500, cost=1, benefit=5, transError=0.01, executionError=0.01, assessmentError=0,
+                 assignmentError=0, beta=10, update='Asynchronous', explorationRate=0.01,
                  rndSeed=None, gephiFileName='test.gexf', layer1=None, layer2=None, socialNorm='SternJudging',
-                 numSwap=1000, logsFileName='logs', typeOfSimulation=None, outputDirectory=None):
+                 numSwap=4000, logsFileName='logs', typeOfSimulation=None, outputDirectory=None):
 
         self.numNodes = numNodes  # Number of nodes
         self.nodes = []
@@ -39,7 +39,8 @@ class IndirectReciprocityMultiplexNetworks:
         self.layer2 = layer2  # Layer2 topology
         self.update = update  # Synchronous or Asynchronous
         self.numSwap = numSwap
-        self.clusteringCoef1 = 0  # Clustering Coefficient used in the plots
+        self.clusteringCoef1 = 0  # Clustering Coefficient used in the plots with Perfect Overlap or depending in L1
+        self.clusteringCoef2 = 0  # Clustering Coefficient used in the plots depending in L2
         self.APL = 0  # Average path length
 
         # Ensure the directory where the logs file will be stored exists
@@ -58,6 +59,8 @@ class IndirectReciprocityMultiplexNetworks:
             self.x_var = self.avgDegree1
         elif self.typeOfSim == 'avgDegree2':
             self.x_var = self.avgDegree2
+        elif self.typeOfSim == 'pWattsStrogatz2':
+            self.x_var = self.prob2
         elif not self.typeOfSim:
             self.x_var = None
         else:
@@ -111,34 +114,36 @@ class IndirectReciprocityMultiplexNetworks:
         if self.layer1 == 'Random':
             self.layer1 = MultiplexNetwork(self.numNodes, self.avgDegree1)
 
-        elif self.layer1 == 'WattsStrogatz' and not self.typeOfSim:  # If it's just one simulation without a plot
-            self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
+        elif self.layer1 == 'WattsStrogatz':
+            if not self.typeOfSim:  # If it's just one simulation without a plot
+                self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
 
         # only generates a new graph when a new pWattsStrogatz is given - ensures all norms use the same graph for each value of pWS
-        elif self.layer1 == 'WattsStrogatz' and self.x_var not in x_axis and self.typeOfSim != 'avgDegree2':
-            self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
-            flagLayer2 = True  # When layer1 changes, layer2 should change as well
-            graph = copy.deepcopy(self.layer1) # stores the layer1 to ensure all norms use the same exact graph
+            elif self.x_var not in x_axis and self.typeOfSim != 'avgDegree2' and self.typeOfSim != 'pWattsStrogatz2':
+                self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
+                flagLayer2 = True  # When layer1 changes, layer2 should change as well
+                graph = copy.deepcopy(self.layer1) # stores the layer1 to ensure all norms use the same exact graph
 
-            self.clusteringCoef1 = nx.transitivity(self.layer1) # Calculate the clustering coefficient and store it for the plot
-            self.APL = nx.average_shortest_path_length(self.layer1) # Calculate the average path length and store it
+                self.clusteringCoef1 = nx.transitivity(self.layer1) # Calculate the clustering coefficient and store it for the plot
+                self.APL = nx.average_shortest_path_length(self.layer1) # Calculate the average path length and store it
 
-            if self.prob1 == 0:
-                # Used to normalize the APL for different values of "p-Watts-Strogatz"
-                ringAPL = self.APL
+                if self.prob1 == 0:
+                    # Used to normalize the APL for different values of "p-Watts-Strogatz"
+                    ringAPL = self.APL
 
-            x_axis.append(self.x_var)
-            CC.append(self.clusteringCoef1)
-            APL.append(self.APL / ringAPL)
+                ringAPL = 62.93793793793794
+                x_axis.append(self.x_var)
+                CC.append(self.clusteringCoef1)
+                APL.append(self.APL / ringAPL)
 
-        elif self.layer1 == 'WattsStrogatz' and self.x_var in x_axis:  # if the graph for the current simulation has already been generated (e.g., when testing different norms with the same graph)
-            self.layer1 = graph
-            flagLayer2 = False  # If layer1 doesn't change, neither should layer2
+            elif self.x_var in x_axis:  # if the graph for the current simulation has already been generated (e.g., when testing different norms with the same graph)
+                self.layer1 = graph
+                flagLayer2 = False  # If layer1 doesn't change, neither should layer2
 
-        # If the simulation is regarding the average degree of L2, just create the graph
-        elif self.layer1 == 'WattsStrogatz' and self.typeOfSim == 'avgDegree2':
-            self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
-            graph = self.layer1
+            # If the simulation is regarding the average degree of L2, just create the graph
+            elif self.typeOfSim == 'avgDegree2' or self.typeOfSim == 'pWattsStrogatz2':
+                self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
+                graph = self.layer1
 
         elif self.layer1 == 'BarabasiAlbert': # todo: if any simulations are made using the BA model, edit this to include self.x_var
             self.layer1 = barabasiAlbert(self.numNodes, self.avgDegree1, self.rndSeed)
@@ -158,19 +163,38 @@ class IndirectReciprocityMultiplexNetworks:
         if self.layer2 == 'Random':
             self.layer2 = MultiplexNetwork(self.numNodes, self.avgDegree2)
 
-        elif self.layer2 == 'WattsStrogatz' and self.x_var not in x_axis:  # this is only true when the simulation is in function of avgDegree2 and a new value is tested
-            self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree2, self.prob2, self.rndSeed)
-            graph2 = copy.deepcopy(self.layer2)
-            x_axis.append(self.x_var)
+        elif self.layer2 == 'WattsStrogatz':
+            if self.typeOfSim == 'pWattsStrogatz2':
+                if self.x_var not in x_axis:
+                    self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree2, self.prob2, self.rndSeed)
+                    graph2 = copy.deepcopy(self.layer2)  # stores the layer2 to ensure all norms use the same exact graph
 
-        elif self.layer2 == 'WattsStrogatz' and self.x_var in x_axis:
-            self.layer2 = graph2
+                    self.clusteringCoef2 = nx.transitivity(self.layer2)  # Calculate the clustering coefficient and store it for the plot
+                    self.APL = nx.average_shortest_path_length(self.layer2)  # Calculate the average path length and store it
+
+                    if self.prob2 == 0:
+                        # Used to normalize the APL for different values of "p-Watts-Strogatz"
+                        ringAPL = self.APL
+
+                    #ringAPL = 62.93793793793794
+                    x_axis.append(self.x_var)
+                    CC.append(self.clusteringCoef2)
+                    APL.append(self.APL / ringAPL)
+                else:
+                    self.layer2 = graph2
+
+            elif self.typeOfSim == 'pWattsStrogatz':
+                if flagLayer2:
+                    self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree2, self.prob2, self.rndSeed)
+                    graph2 = copy.deepcopy(self.layer2)
+                else:
+                    self.layer2 = graph2
 
         elif self.layer2 == 'BarabasiAlbert':
             self.layer2 = barabasiAlbert(self.numNodes, self.avgDegree2, self.rndSeed)
 
         elif self.layer2 == 'PO':
-            self.layer2 = copy.deepcopy(self.layer1)
+            self.layer2 = self.layer1 # not using copy.deepcopy to ensure its the same exact layer and every change to L1 affects L2
 
         elif self.layer2 == 'RN' and flagLayer2:
             self.layer2 = randomizedNeighborhoods(self.layer1, self.numSwap, self.numNodes, self.rndSeed)
@@ -187,8 +211,7 @@ class IndirectReciprocityMultiplexNetworks:
             self.layer2 = graph2
 
         else:
-            print('Wrong layer2 parameter!')
-            exit()
+            raise Exception('Wrong layer2 parameter!')
 
     def runSimulation(self):
         print('=====    Initiating simulation   ======')
@@ -256,7 +279,8 @@ class IndirectReciprocityMultiplexNetworks:
         f.write("######################################")
         f.write("\nSocial Norm: {}".format(self.socialNorm))
         if CC:
-            f.write("\nClustering Coefficient: {}".format(self.clusteringCoef1))
+            f.write("\nClustering Coefficient1: {}".format(self.clusteringCoef1))
+            f.write("\nClustering Coefficient2: {}".format(self.clusteringCoef2))
             f.write("\nAverage Path Length: {}".format(self.APL / ringAPL))
 
         f.write("\n{}: {}".format(self.typeOfSim, self.x_var))
@@ -491,22 +515,21 @@ class IndirectReciprocityMultiplexNetworks:
         else:
             self.perceptions[subject][target] = value
 
-
 if __name__ == "__main__":
     # Variables used
     start_time = time.time()
     initialValues = {
         'numNodes': 1000,  # Number of nodes
-        'prob1':  0.01,  # (0.5) Probability of rewiring links (WattsStrogatz) for Layer 1
-        'prob2': 0.01,  # Probability of rewiring links (WattsStrogatz) for Layer 2
+        'prob1':  0.1,  # Probability of rewiring links (WattsStrogatz) for Layer 1
+        'prob2': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 2
         'avgDegree1': 8,  # Layer 1
         'avgDegree2': 8,  # Layer 2
-        'numGenerations': 1000,  # 5000
+        'numGenerations': 1000,  # 1000
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
         'logFreq': 500,
         # How frequently should the model take logs of the simulation (in generations) (unused, now just prints iterations)
         'cost': 1,  # Cost of cooperation
-        'benefit': 5,  # Benefit of receiving cooperation
+        'benefit': 3,  # Benefit of receiving cooperation
         'explorationRate': 0.01,  # (0.01) Probability of a node adopting a random strategy instead of Social Learning
         'transError': 0.01,  # Probability of a node gossiping wrong information (0.01)
         'executionError': 0.01,  # Probability of a donor attempting to cooperate failing to do so (0.01)
@@ -526,166 +549,35 @@ if __name__ == "__main__":
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': 'SimpleStanding',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
         'logsFileName': 'logs.txt',
-        'typeOfSimulation': None,
-        # 'pWattsStrogatz', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
+        'typeOfSimulation': 'pWattsStrogatz',
+        # 'pWattsStrogatz', 'pWattsStrogatz2', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
         'outputDirectory': 'pWattsStrogatz',  # Name of the output directory
-
     }
-    runs = 1  # How many times should each simulation be repeated
+    runs = 2  # How many times should each simulation be repeated
     if runs < 1:
         raise Exception('Number of runs must be at least 1.')
 
     changes = [{}] # Default for a single simulation
-    '''changes = [{'socialNorm': 'SternJudging', },
-               {'socialNorm': 'SimpleStanding', },
-               {'socialNorm': 'Shunning', },
-               {'socialNorm': 'ImageScoring', }, ]'''
 
-    '''changes = [{'avgDegree2': 2, 'socialNorm': 'SternJudging', },
-               {'avgDegree2': 2, 'socialNorm': 'Shunning', },
-               {'avgDegree2': 2, 'socialNorm': 'ImageScoring', },
-               {'avgDegree2': 2, 'socialNorm': 'SimpleStanding', },
-               {'avgDegree2': 2, 'socialNorm': 'AllGood', },
+    #changes = [{'prob1': 0.1, 'socialNorm': 'ImageScoring', }]
 
-               {'avgDegree2': 4, 'socialNorm': 'SternJudging', },
-               {'avgDegree2': 4, 'socialNorm': 'Shunning', },
-               {'avgDegree2': 4, 'socialNorm': 'ImageScoring', },
-               {'avgDegree2': 4, 'socialNorm': 'SimpleStanding', },
-               {'avgDegree2': 4, 'socialNorm': 'AllGood', },
+    for i in range(runs):
+        for j, c in enumerate(changes):
+            print("--- %s seconds ---" % (time.time() - start_time))
+            config = initialValues.copy()
+            config.update(c)
+            # dir = join('output', 'test{}'.format(j))
+            # if not os.path.exists(dir):
+            #    mkdir(dir)
 
-               {'avgDegree2': 6, 'socialNorm': 'SternJudging', },
-               {'avgDegree2': 6, 'socialNorm': 'Shunning', },
-               {'avgDegree2': 6, 'socialNorm': 'ImageScoring', },
-               {'avgDegree2': 6, 'socialNorm': 'SimpleStanding', },
-               {'avgDegree2': 6, 'socialNorm': 'AllGood', },
-
-               {'avgDegree2': 8, 'socialNorm': 'SternJudging', },
-               {'avgDegree2': 8, 'socialNorm': 'Shunning', },
-               {'avgDegree2': 8, 'socialNorm': 'ImageScoring', },
-               {'avgDegree2': 8, 'socialNorm': 'SimpleStanding', },
-               {'avgDegree2': 8, 'socialNorm': 'AllGood', }, ]
-    '''
-
-    '''changes = [{'explorationRate': 0.1/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.1/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.1/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.1/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 0.3/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.3/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.3/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.3/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 0.5/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.5/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.5/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.5/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 0.8/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 0.8/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 0.8/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 0.8/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 1/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 1/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 1/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 1/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 3/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 3/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 3/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 3/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 5/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 5/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 5/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 5/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 8/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 8/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 8/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 8/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 10/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 10/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 10/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 10/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 20/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 20/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 20/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 20/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 30/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 30/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 30/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 30/50, 'socialNorm': 'SimpleStanding', },
-
-               {'explorationRate': 40/50, 'socialNorm': 'SternJudging', },
-               {'explorationRate': 40/50, 'socialNorm': 'Shunning', },
-               {'explorationRate': 40/50, 'socialNorm': 'ImageScoring', },
-               {'explorationRate': 40/50, 'socialNorm': 'SimpleStanding',},
-               ]
-    '''
-
-    '''
-    changes = [{'prob1': 0, 'socialNorm': 'AllGood', },
-               {'prob1': 0, 'socialNorm': 'SimpleStanding', },
-               {'prob1': 0, 'socialNorm': 'SternJudging', },
-               {'prob1': 0, 'socialNorm': 'Shunning', },
-               {'prob1': 0, 'socialNorm': 'ImageScoring', },
-
-               {'prob1': 0.00001, 'socialNorm': 'AllGood', },
-               {'prob1': 0.00001, 'socialNorm': 'SimpleStanding', },
-               {'prob1': 0.00001, 'socialNorm': 'SternJudging', },
-               {'prob1': 0.00001, 'socialNorm': 'Shunning', },
-               {'prob1': 0.00001, 'socialNorm': 'ImageScoring', },
-
-               {'prob1': 0.0001, 'socialNorm': 'AllGood', },
-               {'prob1': 0.0001, 'socialNorm': 'SimpleStanding', },
-               {'prob1': 0.0001, 'socialNorm': 'SternJudging', },
-               {'prob1': 0.0001, 'socialNorm': 'Shunning', },
-               {'prob1': 0.0001, 'socialNorm': 'ImageScoring', },
-
-               {'prob1': 0.001, 'socialNorm': 'AllGood', },
-               {'prob1': 0.001, 'socialNorm': 'SimpleStanding', },
-               {'prob1': 0.001, 'socialNorm': 'SternJudging', },
-               {'prob1': 0.001, 'socialNorm': 'Shunning', },
-               {'prob1': 0.001, 'socialNorm': 'ImageScoring', },
-
-               {'prob1': 0.01, 'socialNorm': 'AllGood', },
-               {'prob1': 0.01, 'socialNorm': 'SimpleStanding', },
-               {'prob1': 0.01, 'socialNorm': 'SternJudging', },
-               {'prob1': 0.01, 'socialNorm': 'Shunning', },
-               {'prob1': 0.01, 'socialNorm': 'ImageScoring', },
-
-               {'prob1': 0.1, 'socialNorm': 'AllGood', },
-               {'prob1': 0.1, 'socialNorm': 'SimpleStanding', },
-               {'prob1': 0.1, 'socialNorm': 'SternJudging', },
-               {'prob1': 0.1, 'socialNorm': 'Shunning', },
-               {'prob1': 0.1, 'socialNorm': 'ImageScoring', },
-
-               {'prob1': 1, 'socialNorm': 'AllGood', },
-               {'prob1': 1, 'socialNorm': 'SimpleStanding', },
-               {'prob1': 1, 'socialNorm': 'SternJudging', },
-               {'prob1': 1, 'socialNorm': 'Shunning', },
-               {'prob1': 1, 'socialNorm': 'ImageScoring', }, ]
-    '''
-
-    for j, c in enumerate(changes):
-        print("--- %s seconds ---" % (time.time() - start_time))
-        config = initialValues.copy()
-        config.update(c)
-        # dir = join('output', 'test{}'.format(j))
-        # if not os.path.exists(dir):
-        #    mkdir(dir)
-        for i in range(runs):
             sim = IndirectReciprocityMultiplexNetworks(**config)
             sim.runSimulation()
             print('SJ = {}'.format(SJ))
             print('SS = {}'.format(SS))
             print('SH = {}'.format(SH))
             print('IS = {}'.format(IS))
+            if AllG:
+                print('AllG = {}'.format(AllG))
 
     config = initialValues.copy()
     ch = changes.copy()
@@ -738,8 +630,3 @@ if __name__ == "__main__":
 
         barPlot(coopBar, filename)
         '''
-
-
-    # start_time = time.time()
-    # print("--- %s seconds ---" % (time.time() - start_time))
-    # exit()

@@ -322,6 +322,10 @@ def writeFile(coopBar, initialValues, filename):
     f.write("\nSH = {}".format(SH))
     f.write("\nIS = {}".format(IS))
     f.write("\nSS = {}".format(SS))
+    if APL:
+        f.write("\nAPL = {}".format(APL))
+    if CC:
+        f.write("\nCC = {}".format(CC))
     if coopBar:
         f.write("\ncoopRatio = {}".format(coopBar))
         print('Coop Bar =  {}'.format(coopBar))
