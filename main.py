@@ -118,23 +118,25 @@ class IndirectReciprocityMultiplexNetworks:
             if not self.typeOfSim:  # If it's just one simulation without a plot
                 self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
 
-        # only generates a new graph when a new pWattsStrogatz is given - ensures all norms use the same graph for each value of pWS
+            # only generates a new graph when a new pWattsStrogatz is given - ensures all norms use the same graph for each value of pWS
             elif self.x_var not in x_axis and self.typeOfSim != 'avgDegree2' and self.typeOfSim != 'pWattsStrogatz2':
                 self.layer1 = wattsStrogatz(self.numNodes, self.avgDegree1, self.prob1, self.rndSeed)
                 flagLayer2 = True  # When layer1 changes, layer2 should change as well
                 graph = copy.deepcopy(self.layer1) # stores the layer1 to ensure all norms use the same exact graph
 
-                self.clusteringCoef1 = nx.transitivity(self.layer1) # Calculate the clustering coefficient and store it for the plot
-                self.APL = nx.average_shortest_path_length(self.layer1) # Calculate the average path length and store it
+                if self.typeOfSim != 'avgDegree1': # if this is the typeOfSim, we don't want to calculate the APL and CC
+                    self.clusteringCoef1 = nx.transitivity(self.layer1) # Calculate the clustering coefficient and store it for the plot
+                    self.APL = nx.average_shortest_path_length(self.layer1) # Calculate the average path length and store it
 
-                if self.prob1 == 0:
-                    # Used to normalize the APL for different values of "p-Watts-Strogatz"
-                    ringAPL = self.APL
+                    if self.prob1 == 0:
+                        # Used to normalize the APL for different values of "p-Watts-Strogatz"
+                        ringAPL = self.APL
 
-                ringAPL = 62.93793793793794
+                    ringAPL = 62.93793793793794
+                    CC.append(self.clusteringCoef1)
+                    APL.append(self.APL / ringAPL)
+
                 x_axis.append(self.x_var)
-                CC.append(self.clusteringCoef1)
-                APL.append(self.APL / ringAPL)
 
             elif self.x_var in x_axis:  # if the graph for the current simulation has already been generated (e.g., when testing different norms with the same graph)
                 self.layer1 = graph
@@ -183,7 +185,7 @@ class IndirectReciprocityMultiplexNetworks:
                 else:
                     self.layer2 = graph2
 
-            elif self.typeOfSim == 'pWattsStrogatz':
+            elif self.typeOfSim == 'pWattsStrogatz' or self.typeOfSim == 'avgDegree1':
                 if flagLayer2:
                     self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree2, self.prob2, self.rndSeed)
                     graph2 = copy.deepcopy(self.layer2)
@@ -520,13 +522,13 @@ if __name__ == "__main__":
     start_time = time.time()
     initialValues = {
         'numNodes': 1000,  # Number of nodes
-        'prob1':  0.1,  # Probability of rewiring links (WattsStrogatz) for Layer 1
+        'prob1':  0,  # Probability of rewiring links (WattsStrogatz) for Layer 1
         'prob2': 0,  # Probability of rewiring links (WattsStrogatz) for Layer 2
         'avgDegree1': 8,  # Layer 1
         'avgDegree2': 8,  # Layer 2
-        'numGenerations': 1000,  # 1000
+        'numGenerations': 500,  # 1000
         'numInteractions': 2,  # Number of times nodes play with each of their neighbors. Must be > 0
-        'logFreq': 500,
+        'logFreq': 250,
         # How frequently should the model take logs of the simulation (in generations) (unused, now just prints iterations)
         'cost': 1,  # Cost of cooperation
         'benefit': 3,  # Benefit of receiving cooperation
@@ -547,29 +549,27 @@ if __name__ == "__main__":
         # 'TR' - Total Randomization (degree and neighborhoods are different)
         'numSwap': 4000,  # Number of edges swapped for Randomized Neighborhoods
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
-        'socialNorm': 'SimpleStanding',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
+        'socialNorm': '',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
         'logsFileName': 'logs.txt',
-        'typeOfSimulation': 'pWattsStrogatz',
+        'typeOfSimulation': 'avgDegree1',
         # 'pWattsStrogatz', 'pWattsStrogatz2', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
-        'outputDirectory': 'pWattsStrogatz',  # Name of the output directory
+        'outputDirectory': 'avgDegree1',  # Name of the output directory
     }
-    runs = 2  # How many times should each simulation be repeated
+    runs = 1  # How many times should each simulation be repeated
     if runs < 1:
         raise Exception('Number of runs must be at least 1.')
 
     changes = [{}] # Default for a single simulation
 
-    #changes = [{'prob1': 0.1, 'socialNorm': 'ImageScoring', }]
 
-    for i in range(runs):
-        for j, c in enumerate(changes):
-            print("--- %s seconds ---" % (time.time() - start_time))
-            config = initialValues.copy()
-            config.update(c)
-            # dir = join('output', 'test{}'.format(j))
-            # if not os.path.exists(dir):
-            #    mkdir(dir)
-
+    for j, c in enumerate(changes):
+        print("--- %s seconds ---" % (time.time() - start_time))
+        config = initialValues.copy()
+        config.update(c)
+        # dir = join('output', 'test{}'.format(j))
+        # if not os.path.exists(dir):
+        #    mkdir(dir)
+        for i in range(runs):
             sim = IndirectReciprocityMultiplexNetworks(**config)
             sim.runSimulation()
             print('SJ = {}'.format(SJ))

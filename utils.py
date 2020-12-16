@@ -218,7 +218,7 @@ def runLogs(AllG, SJ, SH, IS, SS, CC, APL, x_axis, x_label, filename):
     if APL:
         plt.plot(x_axis, APL, '-D', label='APL')
 
-    if x_label == 'avgDegree' or x_label == 'avgDegree2':
+    if x_label == 'avgDegree1' or x_label == 'avgDegree2':
         plt.xscale('linear')
     else:
         plt.xscale('symlog', linthreshx=0.00001) # Use a linthreshx equal to the lowest probability after 0
@@ -332,5 +332,5 @@ def writeFile(coopBar, initialValues, filename):
 
     f.write("\nx_axis = {}".format(x_axis))
     f.write("\ntypeOfSimulation = \'{}\'".format(initialValues['typeOfSimulation']))
-    f.write("\nfilename: \'{}\' ".format(filename))
+    f.write("\nfilename = \'{}\' ".format(filename))
     f.close()
