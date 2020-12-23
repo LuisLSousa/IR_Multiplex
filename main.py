@@ -166,22 +166,24 @@ class IndirectReciprocityMultiplexNetworks:
             self.layer2 = MultiplexNetwork(self.numNodes, self.avgDegree2)
 
         elif self.layer2 == 'WattsStrogatz':
-            if self.typeOfSim == 'pWattsStrogatz2':
+            if self.typeOfSim == 'pWattsStrogatz2' or self.typeOfSim == 'avgDegree2':
                 if self.x_var not in x_axis:
                     self.layer2 = wattsStrogatz(self.numNodes, self.avgDegree2, self.prob2, self.rndSeed)
                     graph2 = copy.deepcopy(self.layer2)  # stores the layer2 to ensure all norms use the same exact graph
 
-                    self.clusteringCoef2 = nx.transitivity(self.layer2)  # Calculate the clustering coefficient and store it for the plot
-                    self.APL = nx.average_shortest_path_length(self.layer2)  # Calculate the average path length and store it
+                    if self.typeOfSim != 'avgDegree2':  # if this is the typeOfSim, we don't want to calculate the APL and CC
+                        self.clusteringCoef2 = nx.transitivity(self.layer2)  # Calculate the clustering coefficient and store it for the plot
+                        self.APL = nx.average_shortest_path_length(self.layer2)  # Calculate the average path length and store it
 
-                    if self.prob2 == 0:
-                        # Used to normalize the APL for different values of "p-Watts-Strogatz"
-                        ringAPL = self.APL
+                        if self.prob2 == 0:
+                            # Used to normalize the APL for different values of "p-Watts-Strogatz"
+                            ringAPL = self.APL
 
-                    #ringAPL = 62.93793793793794
+                        # ringAPL = 62.93793793793794
+                        CC.append(self.clusteringCoef2)
+                        APL.append(self.APL / ringAPL)
+
                     x_axis.append(self.x_var)
-                    CC.append(self.clusteringCoef2)
-                    APL.append(self.APL / ringAPL)
                 else:
                     self.layer2 = graph2
 
@@ -191,6 +193,7 @@ class IndirectReciprocityMultiplexNetworks:
                     graph2 = copy.deepcopy(self.layer2)
                 else:
                     self.layer2 = graph2
+
 
         elif self.layer2 == 'BarabasiAlbert':
             self.layer2 = barabasiAlbert(self.numNodes, self.avgDegree2, self.rndSeed)
@@ -543,24 +546,23 @@ if __name__ == "__main__":
         'gephiFileName': 'test.gexf',
         # File name used for the gephi export. Must include '.gexf' (Currently unused as the visualization is not needed)
         'layer1': 'WattsStrogatz',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert', 'Complete'
-        'layer2': 'WattsStrogatz',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
+        'layer2': 'RN',  # Graph topology: 'WattsStrogatz', 'Random', 'BarabasiAlbert',
         # 'PO' - Perfect Overlap (Layers are equal),
         # 'RN' - Randomized Neighborhoods (same degree, different neighborhoods),
         # 'TR' - Total Randomization (degree and neighborhoods are different)
-        'numSwap': 4000,  # Number of edges swapped for Randomized Neighborhoods
+        'numSwap': 1500,  # Number of edges swapped for Randomized Neighborhoods
         'update': 'Asynchronous',  # 'Synchronous' or 'Asynchronous'
         'socialNorm': '',  # SimpleStanding, ImageScoring, Shunning, SternJudging or AllGood (baseline)
         'logsFileName': 'logs.txt',
-        'typeOfSimulation': 'avgDegree1',
+        'typeOfSimulation': 'pWattsStrogatz',
         # 'pWattsStrogatz', 'pWattsStrogatz2', 'avgDegree1', 'avgDegree2', 'explorationRate', None - for just one simulation (no plot)
-        'outputDirectory': 'avgDegree1',  # Name of the output directory
+        'outputDirectory': 'RandomizedNeighborhoods',  # Name of the output directory
     }
     runs = 1  # How many times should each simulation be repeated
     if runs < 1:
         raise Exception('Number of runs must be at least 1.')
 
-    changes = [{}] # Default for a single simulation
-
+     changes = [{}] # Default for a single simulation
 
     for j, c in enumerate(changes):
         print("--- %s seconds ---" % (time.time() - start_time))
@@ -630,3 +632,4 @@ if __name__ == "__main__":
 
         barPlot(coopBar, filename)
         '''
+
